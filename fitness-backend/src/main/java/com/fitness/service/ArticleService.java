@@ -59,7 +59,7 @@ public class ArticleService {
     }
     
     /**
-     * 发布文章
+     * 发布文章（提交审核）
      */
     @Transactional(rollbackFor = Exception.class)
     public void publishArticle(Long articleId) {
@@ -75,11 +75,11 @@ public class ArticleService {
         }
         
         if (!"DRAFT".equals(article.getPublishStatus())) {
-            throw new BusinessException("只能发布草稿状态的文章");
+            throw new BusinessException("只能提交草稿状态的文章");
         }
         
-        article.setPublishStatus("PUBLISHED");
-        article.setPublishTime(LocalDateTime.now());
+        // 提交审核，等待管理员审核通过后才能发布
+        article.setAuditStatus("PENDING");
         articleMapper.updateById(article);
     }
     
@@ -99,7 +99,21 @@ public class ArticleService {
             throw new BusinessException("无权操作此文章");
         }
         
+        // 如果是已发布的文章，不允许编辑
+        if ("PUBLISHED".equals(article.getPublishStatus())) {
+            throw new BusinessException("已发布的文章不能编辑");
+        }
+        
         BeanUtils.copyProperties(request, article);
+        
+        // 如果是被拒绝的文章，编辑后重新设置为待审核
+        if ("REJECTED".equals(article.getAuditStatus())) {
+            article.setAuditStatus("PENDING");
+            article.setAuditRemark(null);
+            article.setAuditAdminId(null);
+            article.setAuditTime(null);
+        }
+        
         articleMapper.updateById(article);
     }
     
@@ -412,17 +426,21 @@ public class ArticleService {
         article.setAuditTime(LocalDateTime.now());
         article.setAuditRemark(auditRemark);
         
-        // 如果审核拒绝，将文章下线
-        if ("REJECTED".equals(auditStatus)) {
-            article.setPublishStatus("OFFLINE");
+        // 如果审核通过，发布文章
+        if ("APPROVED".equals(auditStatus)) {
+            article.setPublishStatus("PUBLISHED");
+            article.setPublishTime(LocalDateTime.now());
+        } else {
+            // 如果审核拒绝，保持草稿状态，让教练可以重新编辑
+            article.setPublishStatus("DRAFT");
         }
         
         articleMapper.updateById(article);
         
         // 发送通知给教练
         String notificationContent = "APPROVED".equals(auditStatus) 
-            ? "您的文章《" + article.getTitle() + "》已通过审核" 
-            : "您的文章《" + article.getTitle() + "》审核未通过，原因：" + auditRemark;
+            ? "您的文章《" + article.getTitle() + "》已通过审核并发布" 
+            : "您的文章《" + article.getTitle() + "》审核未通过，原因：" + auditRemark + "。请修改后重新提交";
         
         notificationService.sendNotification(
             article.getAuthorId(),

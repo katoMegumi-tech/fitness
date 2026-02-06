@@ -65,3 +65,25 @@ export function getCheckInStats(days = 30) {
     params: { days }
   })
 }
+
+/**
+ * 查询待审核的打卡列表（教练端）
+ */
+export function getPendingCheckIns(params) {
+  return request({
+    url: '/api/checkin/pending',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 审核打卡（教练端）
+ */
+export function reviewCheckIn(checkInId, data) {
+  return request({
+    url: `/api/checkin/comment/${checkInId}`,
+    method: 'post',
+    data
+  })
+}

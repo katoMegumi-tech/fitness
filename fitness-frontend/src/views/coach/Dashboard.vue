@@ -35,6 +35,10 @@
             <el-icon><EditPen /></el-icon>
             <span>制定计划</span>
           </el-menu-item>
+          <el-menu-item index="checkin-review">
+            <el-icon><CircleCheck /></el-icon>
+            <span>打卡审核</span>
+          </el-menu-item>
           <el-menu-item index="articles">
             <el-icon><Reading /></el-icon>
             <span>文章管理</span>
@@ -146,7 +150,7 @@ import { ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import { ElMessage } from 'element-plus'
-import { HomeFilled, Medal, Message, User, EditPen, Reading, Bell, ArrowDown, ArrowRight, SwitchButton, TrophyBase } from '@element-plus/icons-vue'
+import { HomeFilled, Medal, Message, User, EditPen, Reading, Bell, ArrowDown, ArrowRight, SwitchButton, TrophyBase, CircleCheck } from '@element-plus/icons-vue'
 import { logout } from '@/api/auth'
 
 const router = useRouter()
@@ -166,6 +170,8 @@ watch(() => route.path, (newPath) => {
     activeMenu.value = 'students'
   } else if (newPath === '/coach/plan-editor') {
     activeMenu.value = 'plan-editor'
+  } else if (newPath === '/coach/checkin-review') {
+    activeMenu.value = 'checkin-review'
   } else if (newPath === '/coach/articles') {
     activeMenu.value = 'articles'
   } else if (newPath === '/coach/notifications') {
@@ -182,6 +188,7 @@ const handleMenuSelect = (index) => {
     'bind-applies': '/coach/bind-applies',
     'students': '/coach/students',
     'plan-editor': '/coach/plan-editor',
+    'checkin-review': '/coach/checkin-review',
     'articles': '/coach/articles',
     'notifications': '/coach/notifications'
   }

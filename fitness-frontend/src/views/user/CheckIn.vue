@@ -25,8 +25,28 @@
 
       <el-divider />
 
+      <!-- 打卡权限提示 -->
+      <el-alert
+        v-if="!hasActivePlan"
+        title="打卡功能暂不可用"
+        type="warning"
+        description="您需要先绑定教练并获得教练制定的健身计划（需管理员审核通过且您确认后）才能使用打卡功能"
+        :closable="false"
+        style="margin-bottom: 20px"
+      />
+
       <!-- 今日打卡表单 -->
-      <el-form :model="checkInForm" label-width="120px" style="max-width: 600px">
+      <el-form :model="checkInForm" label-width="120px" style="max-width: 600px" :disabled="!hasActivePlan">
+        <el-form-item label="打卡类型">
+          <el-radio-group v-model="checkInForm.checkType">
+            <el-radio label="NORMAL">普通打卡</el-radio>
+            <el-radio label="TARGET">完成目标打卡</el-radio>
+          </el-radio-group>
+          <div style="color: #909399; font-size: 12px; margin-top: 5px">
+            完成目标打卡需填写身体数据，教练将判断是否达标
+          </div>
+        </el-form-item>
+
         <el-form-item label="运动完成度">
           <el-slider v-model="checkInForm.exerciseCompletion" :min="0" :max="100" show-input />
         </el-form-item>
@@ -39,15 +59,21 @@
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item label="当日体重(kg)">
+        <el-form-item 
+          label="当日体重(kg)" 
+          :required="checkInForm.checkType === 'TARGET'">
           <el-input-number v-model="checkInForm.weight" :min="20" :max="300" :precision="1" />
         </el-form-item>
 
-        <el-form-item label="当日体脂率(%)">
+        <el-form-item 
+          label="当日体脂率(%)" 
+          :required="checkInForm.checkType === 'TARGET'">
           <el-input-number v-model="checkInForm.bodyFatRate" :min="5" :max="60" :precision="1" />
         </el-form-item>
 
-        <el-form-item label="肌肉量(kg)">
+        <el-form-item 
+          label="肌肉量(kg)" 
+          :required="checkInForm.checkType === 'TARGET'">
           <el-input-number v-model="checkInForm.muscleMass" :min="10" :max="100" :precision="1" />
         </el-form-item>
 
@@ -78,7 +104,7 @@
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" @click="submitCheckIn" :loading="submitting">
+          <el-button type="primary" @click="submitCheckIn" :loading="submitting" :disabled="!hasActivePlan">
             提交打卡
           </el-button>
         </el-form-item>
@@ -94,6 +120,12 @@
       </template>
 
       <el-table :data="checkInHistory" stripe>
+        <el-table-column prop="checkType" label="打卡类型" width="120">
+          <template #default="{ row }">
+            <el-tag v-if="row.checkType === 'TARGET'" type="warning">完成目标</el-tag>
+            <el-tag v-else>普通打卡</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="checkTime" label="打卡时间" width="180">
           <template #default="{ row }">
             {{ row.checkTime ? row.checkTime.replace('T', ' ').substring(0, 19) : '' }}
@@ -113,6 +145,13 @@
         </el-table-column>
         <el-table-column prop="weight" label="体重(kg)" width="100" />
         <el-table-column prop="bodyFatRate" label="体脂率(%)" width="100" />
+        <el-table-column label="是否达标" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.checkType === 'TARGET' && row.isQualified === 1" type="success">已达标</el-tag>
+            <el-tag v-else-if="row.checkType === 'TARGET' && row.isQualified === 0" type="danger">未达标</el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="userRemark" label="备注" show-overflow-tooltip />
         <el-table-column label="教练点评" show-overflow-tooltip>
           <template #default="{ row }">
@@ -151,10 +190,13 @@ import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { submitCheckIn as submitCheckInApi, getMyCheckInHistory, getCheckInStats, getBodyDataTrend } from '@/api/checkin'
+import { checkActivePlan } from '@/api/plan'
 import { uploadCheckinImage } from '@/api/upload'
 import * as echarts from 'echarts'
 
+const hasActivePlan = ref(false)
 const checkInForm = reactive({
+  checkType: 'NORMAL',
   exerciseCompletion: 80,
   dietCompletion: 'COMPLETE',
   weight: null,
@@ -208,6 +250,14 @@ const handleImageRemove = (file) => {
 
 // 提交打卡
 const submitCheckIn = async () => {
+  // 验证完成目标打卡必填项
+  if (checkInForm.checkType === 'TARGET') {
+    if (!checkInForm.weight || !checkInForm.bodyFatRate || !checkInForm.muscleMass) {
+      ElMessage.warning('完成目标打卡必须填写体重、体脂率和肌肉量')
+      return
+    }
+  }
+
   try {
     submitting.value = true
     // 将图片数组转换为逗号分隔的字符串
@@ -219,6 +269,7 @@ const submitCheckIn = async () => {
     ElMessage.success('打卡成功！')
     
     // 重置表单
+    checkInForm.checkType = 'NORMAL'
     checkInForm.exerciseCompletion = 80
     checkInForm.dietCompletion = 'COMPLETE'
     checkInForm.weight = null
@@ -345,7 +396,18 @@ const getProgressColor = (percentage) => {
   return '#F56C6C'
 }
 
+// 检查是否有激活的计划
+const checkPlanStatus = async () => {
+  try {
+    const res = await checkActivePlan()
+    hasActivePlan.value = res.data
+  } catch (error) {
+    console.error('检查计划状态失败', error)
+  }
+}
+
 onMounted(() => {
+  checkPlanStatus()
   loadCheckInHistory()
   loadStats()
   loadTrendChart()

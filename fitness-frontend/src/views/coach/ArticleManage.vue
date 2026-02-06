@@ -4,7 +4,16 @@
       <template #header>
         <div class="card-header">
           <span>我的文章</span>
-          <el-button type="primary" @click="showCreateDialog">创建文章</el-button>
+          <div>
+            <el-radio-group v-model="filterStatus" @change="loadArticles" style="margin-right: 10px">
+              <el-radio-button label="">全部</el-radio-button>
+              <el-radio-button label="DRAFT">草稿</el-radio-button>
+              <el-radio-button label="PENDING">待审核</el-radio-button>
+              <el-radio-button label="APPROVED">已通过</el-radio-button>
+              <el-radio-button label="REJECTED">已拒绝</el-radio-button>
+            </el-radio-group>
+            <el-button type="primary" @click="showCreateDialog">创建文章</el-button>
+          </div>
         </div>
       </template>
 
@@ -34,16 +43,24 @@
             {{ formatTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="250" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="editArticle(row)">编辑</el-button>
             <el-button 
-              v-if="row.publishStatus === 'DRAFT'" 
+              v-if="row.publishStatus !== 'PUBLISHED'" 
+              size="small" 
+              @click="editArticle(row)">
+              编辑
+            </el-button>
+            <el-button 
+              v-if="row.publishStatus === 'DRAFT' && row.auditStatus !== 'PENDING'" 
               size="small" 
               type="primary" 
               @click="publishArticle(row.articleId)">
-              发布
+              提交审核
             </el-button>
+            <el-tag v-if="row.auditStatus === 'REJECTED'" type="danger" size="small">
+              {{ row.auditRemark }}
+            </el-tag>
             <el-button size="small" type="danger" @click="deleteArticle(row.articleId)">删除</el-button>
           </template>
         </el-table-column>
@@ -123,6 +140,7 @@ const submitting = ref(false)
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const articleList = ref([])
+const filterStatus = ref('')
 
 const articleForm = reactive({
   articleId: null,
@@ -140,12 +158,13 @@ const pagination = reactive({
 })
 
 // 加载数据
-const loadData = async () => {
+const loadArticles = async () => {
   loading.value = true
   try {
     const res = await getMyArticles({
       pageNum: pagination.pageNum,
-      pageSize: pagination.pageSize
+      pageSize: pagination.pageSize,
+      auditStatus: filterStatus.value || undefined
     })
     articleList.value = res.data.records
     pagination.total = res.data.total
@@ -155,6 +174,9 @@ const loadData = async () => {
     loading.value = false
   }
 }
+
+// 兼容旧的方法名
+const loadData = loadArticles
 
 // 格式化时间
 const formatTime = (time) => {
@@ -216,20 +238,20 @@ const submitArticle = async () => {
   }
 }
 
-// 发布文章
+// 发布文章（提交审核）
 const publishArticle = async (articleId) => {
   try {
-    await ElMessageBox.confirm('确定发布此文章吗？', '提示', {
+    await ElMessageBox.confirm('确定提交此文章到管理员审核吗？', '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning'
     })
     await publishArticleApi(articleId)
-    ElMessage.success('文章发布成功')
+    ElMessage.success('文章已提交审核')
     loadData()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('发布失败')
+      ElMessage.error('提交失败')
     }
   }
 }

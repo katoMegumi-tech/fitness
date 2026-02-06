@@ -113,6 +113,21 @@ public class FitnessPlan {
     private String auditRemark;
     
     /**
+     * 用户确认状态：PENDING/APPROVED/REJECTED
+     */
+    private String userConfirmStatus;
+    
+    /**
+     * 用户确认时间
+     */
+    private LocalDateTime userConfirmTime;
+    
+    /**
+     * 用户拒绝理由
+     */
+    private String userRejectReason;
+    
+    /**
      * 创建时间
      */
     @TableField(fill = FieldFill.INSERT)

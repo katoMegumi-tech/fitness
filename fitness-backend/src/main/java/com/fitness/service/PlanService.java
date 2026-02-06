@@ -97,11 +97,6 @@ public class PlanService {
             throw new BusinessException("您与该用户没有绑定关系");
         }
         
-        // 自动安全检查
-        boolean isSafe = isSafePlan(request);
-        String auditStatus = isSafe ? "APPROVED" : "PENDING";
-        String planStatus = isSafe ? "ACTIVE" : "DRAFT";
-        
         // 创建计划
         FitnessPlan plan = new FitnessPlan();
         plan.setPlanNo("PLAN-" + IdUtil.getSnowflakeNextIdStr());
@@ -115,19 +110,13 @@ public class PlanService {
         plan.setPlanCycle(request.getPlanCycle());
         plan.setPlanStartTime(request.getPlanStartTime());
         plan.setPlanEndTime(request.getPlanEndTime());
-        plan.setPlanStatus(planStatus);
+        plan.setPlanStatus("DRAFT");  // 草稿状态
         plan.setVersion(1);
-        plan.setAuditStatus(auditStatus);
-        
-        if (isSafe) {
-            plan.setAuditRemark("系统自动审核通过");
-            plan.setAuditTime(LocalDateTime.now());
-            log.info("计划自动审核通过: {}", plan.getPlanNo());
-        } else {
-            log.info("计划需要人工审核: {}", plan.getPlanNo());
-        }
+        plan.setAuditStatus("PENDING");  // 待审核状态
         
         planMapper.insert(plan);
+        
+        log.info("教练创建计划，等待管理员审核: {}", plan.getPlanNo());
     }
     
     /**
@@ -147,11 +136,6 @@ public class PlanService {
             throw new BusinessException("无权调整此计划");
         }
         
-        // 自动安全检查
-        boolean isSafe = isSafePlan(request);
-        String auditStatus = isSafe ? "APPROVED" : "PENDING";
-        String planStatus = isSafe ? "ACTIVE" : "DRAFT";
-        
         // 创建新版本计划
         FitnessPlan newPlan = new FitnessPlan();
         newPlan.setPlanNo("PLAN-" + IdUtil.getSnowflakeNextIdStr());
@@ -165,21 +149,15 @@ public class PlanService {
         newPlan.setPlanCycle(request.getPlanCycle());
         newPlan.setPlanStartTime(request.getPlanStartTime());
         newPlan.setPlanEndTime(request.getPlanEndTime());
-        newPlan.setPlanStatus(planStatus);
+        newPlan.setPlanStatus("DRAFT");  // 草稿状态
         newPlan.setVersion(oldPlan.getVersion() + 1);
         newPlan.setParentPlanId(planId);
         newPlan.setAdjustmentReason(request.getAdjustmentReason());
-        newPlan.setAuditStatus(auditStatus);
-        
-        if (isSafe) {
-            newPlan.setAuditRemark("系统自动审核通过");
-            newPlan.setAuditTime(LocalDateTime.now());
-            log.info("调整计划自动审核通过: {}", newPlan.getPlanNo());
-        } else {
-            log.info("调整计划需要人工审核: {}", newPlan.getPlanNo());
-        }
+        newPlan.setAuditStatus("PENDING");  // 待审核状态
         
         planMapper.insert(newPlan);
+        
+        log.info("教练调整计划，等待管理员审核: {}", newPlan.getPlanNo());
     }
     
     /**
@@ -204,9 +182,53 @@ public class PlanService {
         plan.setAuditAdminId(adminId);
         plan.setAuditTime(LocalDateTime.now());
         
-        // 如果审核通过，激活计划
+        // 如果审核通过，设置为待用户确认状态
         if ("APPROVED".equals(request.getAuditStatus())) {
+            plan.setPlanStatus("PENDING");  // 等待用户确认
+            plan.setUserConfirmStatus("PENDING");
+        } else {
+            // 审核拒绝，设置为草稿状态
+            plan.setPlanStatus("DRAFT");
+        }
+        
+        planMapper.updateById(plan);
+    }
+    
+    /**
+     * 用户确认健身计划
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void confirmPlan(Long planId, String confirmStatus, String rejectReason) {
+        Long userId = StpUtil.getLoginIdAsLong();
+        
+        FitnessPlan plan = planMapper.selectById(planId);
+        if (plan == null) {
+            throw new BusinessException("计划不存在");
+        }
+        
+        if (!plan.getUserId().equals(userId)) {
+            throw new BusinessException("无权确认此计划");
+        }
+        
+        if (!"APPROVED".equals(plan.getAuditStatus())) {
+            throw new BusinessException("该计划尚未通过管理员审核");
+        }
+        
+        if (!"PENDING".equals(plan.getUserConfirmStatus())) {
+            throw new BusinessException("该计划已被确认");
+        }
+        
+        // 更新用户确认信息
+        plan.setUserConfirmStatus(confirmStatus);
+        plan.setUserConfirmTime(LocalDateTime.now());
+        
+        if ("APPROVED".equals(confirmStatus)) {
+            // 用户同意，激活计划
             plan.setPlanStatus("ACTIVE");
+        } else {
+            // 用户拒绝，返回给教练重新制定
+            plan.setPlanStatus("DRAFT");
+            plan.setUserRejectReason(rejectReason);
         }
         
         planMapper.updateById(plan);
@@ -215,19 +237,39 @@ public class PlanService {
     /**
      * 查询用户的健身计划列表
      */
-    public Page<FitnessPlanResponse> getUserPlans(int pageNum, int pageSize) {
+    public Page<FitnessPlanResponse> getUserPlans(int pageNum, int pageSize, String planStatus) {
         Long userId = StpUtil.getLoginIdAsLong();
-        return getPlansByUserId(userId, pageNum, pageSize);
+        return getPlansByUserId(userId, pageNum, pageSize, planStatus);
+    }
+    
+    /**
+     * 检查用户是否有激活的计划
+     */
+    public boolean hasActivePlan(Long userId) {
+        LambdaQueryWrapper<FitnessPlan> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(FitnessPlan::getUserId, userId)
+               .eq(FitnessPlan::getPlanStatus, "ACTIVE")
+               .eq(FitnessPlan::getAuditStatus, "APPROVED")
+               .eq(FitnessPlan::getUserConfirmStatus, "APPROVED");
+        
+        Long count = planMapper.selectCount(wrapper);
+        return count > 0;
     }
     
     /**
      * 根据用户ID查询健身计划列表
      */
-    public Page<FitnessPlanResponse> getPlansByUserId(Long userId, int pageNum, int pageSize) {
+    public Page<FitnessPlanResponse> getPlansByUserId(Long userId, int pageNum, int pageSize, String planStatus) {
         Page<FitnessPlan> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<FitnessPlan> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FitnessPlan::getUserId, userId)
-               .orderByDesc(FitnessPlan::getCreatedAt);
+        wrapper.eq(FitnessPlan::getUserId, userId);
+        
+        // 如果指定了计划状态，则按状态筛选
+        if (planStatus != null && !planStatus.isEmpty()) {
+            wrapper.eq(FitnessPlan::getPlanStatus, planStatus);
+        }
+        
+        wrapper.orderByDesc(FitnessPlan::getCreatedAt);
         
         Page<FitnessPlan> planPage = planMapper.selectPage(page, wrapper);
         
@@ -240,6 +282,11 @@ public class PlanService {
         
         responsePage.setRecords(records);
         return responsePage;
+    }
+    
+    // 兼容旧方法
+    public Page<FitnessPlanResponse> getPlansByUserId(Long userId, int pageNum, int pageSize) {
+        return getPlansByUserId(userId, pageNum, pageSize, null);
     }
     
     /**
@@ -269,11 +316,16 @@ public class PlanService {
     /**
      * 查询待审核的计划列表（管理员）
      */
-    public Page<FitnessPlanResponse> getPendingPlans(int pageNum, int pageSize) {
+    public Page<FitnessPlanResponse> getPendingPlans(int pageNum, int pageSize, String auditStatus) {
         Page<FitnessPlan> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<FitnessPlan> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FitnessPlan::getAuditStatus, "PENDING")
-               .orderByAsc(FitnessPlan::getCreatedAt);
+        
+        // 如果指定了审核状态，则按状态筛选；否则查询所有
+        if (auditStatus != null && !auditStatus.isEmpty()) {
+            wrapper.eq(FitnessPlan::getAuditStatus, auditStatus);
+        }
+        
+        wrapper.orderByDesc(FitnessPlan::getCreatedAt);
         
         Page<FitnessPlan> planPage = planMapper.selectPage(page, wrapper);
         

@@ -117,6 +117,12 @@ const routes = [
         meta: { title: '文章管理' }
       },
       {
+        path: 'checkin-review',
+        name: 'CheckInReview',
+        component: () => import('@/views/coach/CheckInReview.vue'),
+        meta: { title: '打卡审核' }
+      },
+      {
         path: 'notifications',
         name: 'CoachNotifications',
         component: () => import('@/views/common/Notifications.vue'),

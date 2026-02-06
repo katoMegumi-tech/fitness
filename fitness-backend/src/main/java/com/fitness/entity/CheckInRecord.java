@@ -39,6 +39,11 @@ public class CheckInRecord {
     private String checkType;
     
     /**
+     * 打卡状态：PENDING/COMPLETED
+     */
+    private String checkStatus;
+    
+    /**
      * 是否达标：1=达标, 0=未达标
      */
     private Integer isQualified;

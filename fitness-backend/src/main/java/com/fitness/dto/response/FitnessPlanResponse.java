@@ -115,6 +115,21 @@ public class FitnessPlanResponse {
     private LocalDateTime auditTime;
     
     /**
+     * 用户确认状态
+     */
+    private String userConfirmStatus;
+    
+    /**
+     * 用户确认时间
+     */
+    private LocalDateTime userConfirmTime;
+    
+    /**
+     * 用户拒绝理由
+     */
+    private String userRejectReason;
+    
+    /**
      * 创建时间
      */
     private LocalDateTime createdAt;

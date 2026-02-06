@@ -106,7 +106,7 @@ const formatTime = (time) => {
 
 // 跳转到教练列表
 const goToCoachList = () => {
-  router.push('/user/coach-list')
+  router.push('/user/coaches')
 }
 
 // 解除绑定

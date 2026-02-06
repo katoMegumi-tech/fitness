@@ -28,7 +28,7 @@ public class PlanController {
     @SaCheckRole("COACH")
     public Result<String> createPlan(@Validated @RequestBody CreatePlanRequest request) {
         planService.createPlan(request);
-        return Result.success("计划已创建，系统已自动审核");
+        return Result.success("计划已创建，等待管理员审核");
     }
     
     /**
@@ -40,7 +40,7 @@ public class PlanController {
             @PathVariable Long planId,
             @Validated @RequestBody CreatePlanRequest request) {
         planService.adjustPlan(planId, request);
-        return Result.success("计划已调整，系统已自动审核");
+        return Result.success("计划已调整，等待管理员审核");
     }
     
     /**
@@ -56,14 +56,28 @@ public class PlanController {
     }
     
     /**
+     * 用户确认健身计划
+     */
+    @PostMapping("/{planId}/confirm")
+    @SaCheckRole("USER")
+    public Result<String> confirmPlan(
+            @PathVariable Long planId,
+            @RequestParam String confirmStatus,
+            @RequestParam(required = false) String rejectReason) {
+        planService.confirmPlan(planId, confirmStatus, rejectReason);
+        return Result.success("确认完成");
+    }
+    
+    /**
      * 查询用户的健身计划列表
      */
     @GetMapping("/user")
     @SaCheckRole("USER")
     public Result<Page<FitnessPlanResponse>> getUserPlans(
             @RequestParam(defaultValue = "1") int pageNum,
-            @RequestParam(defaultValue = "10") int pageSize) {
-        Page<FitnessPlanResponse> page = planService.getUserPlans(pageNum, pageSize);
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) String planStatus) {
+        Page<FitnessPlanResponse> page = planService.getUserPlans(pageNum, pageSize, planStatus);
         return Result.success(page);
     }
     
@@ -86,8 +100,9 @@ public class PlanController {
     @SaCheckRole("ADMIN")
     public Result<Page<FitnessPlanResponse>> getPendingPlans(
             @RequestParam(defaultValue = "1") int pageNum,
-            @RequestParam(defaultValue = "10") int pageSize) {
-        Page<FitnessPlanResponse> page = planService.getPendingPlans(pageNum, pageSize);
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) String auditStatus) {
+        Page<FitnessPlanResponse> page = planService.getPendingPlans(pageNum, pageSize, auditStatus);
         return Result.success(page);
     }
     
@@ -98,5 +113,16 @@ public class PlanController {
     public Result<FitnessPlanResponse> getPlanById(@PathVariable Long planId) {
         FitnessPlanResponse response = planService.getPlanById(planId);
         return Result.success(response);
+    }
+    
+    /**
+     * 检查用户是否有激活的计划
+     */
+    @GetMapping("/check-active")
+    @SaCheckRole("USER")
+    public Result<Boolean> checkActivePlan() {
+        Long userId = cn.dev33.satoken.stp.StpUtil.getLoginIdAsLong();
+        boolean hasActive = planService.hasActivePlan(userId);
+        return Result.success(hasActive);
     }
 }

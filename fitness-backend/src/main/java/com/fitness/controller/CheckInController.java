@@ -64,9 +64,11 @@ public class CheckInController {
     @SaCheckRole("COACH")
     public Result<Void> addCoachComment(
             @PathVariable Long checkInId,
-            @RequestBody Map<String, String> request) {
-        String comment = request.get("comment");
-        checkInService.addCoachComment(checkInId, comment);
+            @RequestBody Map<String, Object> request) {
+        String comment = (String) request.get("comment");
+        Integer isQualified = request.get("isQualified") != null ? 
+            Integer.parseInt(request.get("isQualified").toString()) : null;
+        checkInService.addCoachComment(checkInId, comment, isQualified);
         return Result.success();
     }
     
@@ -92,5 +94,18 @@ public class CheckInController {
         Long userId = StpUtil.getLoginIdAsLong();
         Map<String, Object> stats = checkInService.getCheckInStats(userId, days);
         return Result.success(stats);
+    }
+    
+    /**
+     * 查询待审核的打卡列表（教练端）
+     */
+    @GetMapping("/pending")
+    @SaCheckRole("COACH")
+    public Result<IPage<Map<String, Object>>> getPendingCheckIns(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(required = false) String checkType) {
+        IPage<Map<String, Object>> page = checkInService.getPendingCheckIns(pageNum, pageSize, checkType);
+        return Result.success(page);
     }
 }

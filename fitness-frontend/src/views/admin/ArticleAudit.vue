@@ -130,6 +130,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getAllArticles, auditArticle } from '@/api/article'
+import { getImageUrl } from '@/utils/image'
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -173,7 +174,10 @@ const formatTime = (time) => {
 
 // 查看文章
 const viewArticle = (article) => {
-  currentArticle.value = article
+  currentArticle.value = {
+    ...article,
+    coverImage: article.coverImage ? getImageUrl(article.coverImage) : null
+  }
   detailVisible.value = true
 }
 

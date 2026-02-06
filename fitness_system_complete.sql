@@ -170,6 +170,10 @@ CREATE TABLE `t_fitness_plan` (
   `audit_admin_id` BIGINT DEFAULT NULL COMMENT '审核管理员ID',
   `audit_time` DATETIME DEFAULT NULL COMMENT '审核时间',
   `audit_remark` VARCHAR(200) DEFAULT NULL COMMENT '审核备注',
+  -- 用户确认字段
+  `user_confirm_status` VARCHAR(20) DEFAULT NULL COMMENT '用户确认状态：PENDING/APPROVED/REJECTED',
+  `user_confirm_time` DATETIME DEFAULT NULL COMMENT '用户确认时间',
+  `user_reject_reason` VARCHAR(200) DEFAULT NULL COMMENT '用户拒绝理由',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   INDEX `idx_plan_no` (`plan_no`),
@@ -192,6 +196,7 @@ CREATE TABLE `t_check_in_record` (
   `user_id` BIGINT NOT NULL COMMENT 'FK -> user.user_id',
   `plan_id` BIGINT NOT NULL COMMENT 'FK -> t_fitness_plan.plan_id',
   `check_type` VARCHAR(20) NOT NULL DEFAULT 'NORMAL' COMMENT '打卡类型：NORMAL/TARGET',
+  `check_status` VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT '打卡状态：PENDING=待审核, COMPLETED=已完结',
   `is_qualified` TINYINT(1) DEFAULT NULL COMMENT '是否达标：1=达标, 0=未达标',
   `exercise_completion` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '运动完成度（0-100）',
   `diet_completion` VARCHAR(20) NOT NULL DEFAULT 'INCOMPLETE' COMMENT '饮食完成度：COMPLETE/PARTIAL/INCOMPLETE',
@@ -210,7 +215,8 @@ CREATE TABLE `t_check_in_record` (
   INDEX `idx_check_no` (`check_no`),
   INDEX `idx_user_id` (`user_id`),
   INDEX `idx_plan_id` (`plan_id`),
-  INDEX `idx_check_time` (`check_time`)
+  INDEX `idx_check_time` (`check_time`),
+  INDEX `idx_check_status` (`check_status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='打卡记录表';
 
 -- ============================================

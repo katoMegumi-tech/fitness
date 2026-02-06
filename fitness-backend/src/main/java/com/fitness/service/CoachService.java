@@ -153,12 +153,17 @@ public class CoachService {
     /**
      * 查询待审核的教练列表（管理员）
      */
-    public Page<CoachProfileResponse> getPendingCoaches(int pageNum, int pageSize) {
-        // 查询待审核的教练资料
+    public Page<CoachProfileResponse> getPendingCoaches(int pageNum, int pageSize, String certificationStatus) {
+        // 查询教练资料
         Page<CoachProfile> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<CoachProfile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CoachProfile::getCertificationStatus, "PENDING")
-               .orderByAsc(CoachProfile::getCreatedAt);
+        
+        // 如果指定了状态，则按状态筛选；否则查询所有
+        if (certificationStatus != null && !certificationStatus.isEmpty()) {
+            wrapper.eq(CoachProfile::getCertificationStatus, certificationStatus);
+        }
+        
+        wrapper.orderByAsc(CoachProfile::getCreatedAt);
         
         Page<CoachProfile> profilePage = coachProfileMapper.selectPage(page, wrapper);
         

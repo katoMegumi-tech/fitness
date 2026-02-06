@@ -85,8 +85,9 @@ public class CoachController {
     @SaCheckRole("ADMIN")
     public Result<Page<CoachProfileResponse>> getPendingCoaches(
             @RequestParam(defaultValue = "1") int pageNum,
-            @RequestParam(defaultValue = "10") int pageSize) {
-        Page<CoachProfileResponse> page = coachService.getPendingCoaches(pageNum, pageSize);
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) String certificationStatus) {
+        Page<CoachProfileResponse> page = coachService.getPendingCoaches(pageNum, pageSize, certificationStatus);
         return Result.success(page);
     }
     

@@ -75,3 +75,24 @@ export function getPlanById(planId) {
     method: 'get'
   })
 }
+
+/**
+ * 用户确认健身计划
+ */
+export function confirmPlan(planId, data) {
+  return request({
+    url: `/plan/${planId}/confirm`,
+    method: 'post',
+    params: data
+  })
+}
+
+/**
+ * 检查用户是否有激活的计划
+ */
+export function checkActivePlan() {
+  return request({
+    url: '/plan/check-active',
+    method: 'get'
+  })
+}

@@ -4,6 +4,12 @@
       <template #header>
         <div class="card-header">
           <span>健身计划审核</span>
+          <el-radio-group v-model="filterStatus" @change="loadData">
+            <el-radio-button label="">全部</el-radio-button>
+            <el-radio-button label="PENDING">待审核</el-radio-button>
+            <el-radio-button label="APPROVED">已通过</el-radio-button>
+            <el-radio-button label="REJECTED">已拒绝</el-radio-button>
+          </el-radio-group>
         </div>
       </template>
 
@@ -147,6 +153,7 @@ const detailVisible = ref(false)
 const auditVisible = ref(false)
 const currentPlan = ref(null)
 const auditTitle = ref('')
+const filterStatus = ref('')
 
 const pagination = reactive({
   pageNum: 1,
@@ -165,7 +172,8 @@ const loadData = async () => {
   try {
     const res = await getPendingPlans({
       pageNum: pagination.pageNum,
-      pageSize: pagination.pageSize
+      pageSize: pagination.pageSize,
+      auditStatus: filterStatus.value || undefined
     })
     tableData.value = res.data.records
     pagination.total = res.data.total

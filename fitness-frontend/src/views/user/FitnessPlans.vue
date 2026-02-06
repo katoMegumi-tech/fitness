@@ -4,6 +4,12 @@
       <template #header>
         <div class="card-header">
           <span>我的健身计划</span>
+          <el-radio-group v-model="filterStatus" @change="loadData">
+            <el-radio-button label="">全部</el-radio-button>
+            <el-radio-button label="PENDING">待确认</el-radio-button>
+            <el-radio-button label="ACTIVE">进行中</el-radio-button>
+            <el-radio-button label="COMPLETED">已完成</el-radio-button>
+          </el-radio-group>
         </div>
       </template>
 
@@ -37,10 +43,25 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column prop="userConfirmStatus" label="确认状态" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.userConfirmStatus" :type="getConfirmType(row.userConfirmStatus)">
+              {{ getConfirmText(row.userConfirmStatus) }}
+            </el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" size="small" @click="handleView(row)">
               查看详情
+            </el-button>
+            <el-button 
+              v-if="row.auditStatus === 'APPROVED' && row.userConfirmStatus === 'PENDING'"
+              type="success" 
+              size="small" 
+              @click="handleConfirm(row)">
+              确认计划
             </el-button>
           </template>
         </el-table-column>
@@ -102,6 +123,36 @@
 
       <template #footer>
         <el-button @click="detailVisible = false">关闭</el-button>
+        <el-button 
+          v-if="currentPlan.auditStatus === 'APPROVED' && currentPlan.userConfirmStatus === 'PENDING'"
+          type="success" 
+          @click="handleConfirm(currentPlan)">
+          确认计划
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 确认对话框 -->
+    <el-dialog v-model="confirmVisible" title="确认计划" width="500px">
+      <el-form :model="confirmForm" label-width="100px">
+        <el-form-item label="确认结果">
+          <el-radio-group v-model="confirmForm.confirmStatus">
+            <el-radio label="APPROVED">同意</el-radio>
+            <el-radio label="REJECTED">拒绝</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="拒绝理由" v-if="confirmForm.confirmStatus === 'REJECTED'">
+          <el-input 
+            v-model="confirmForm.rejectReason" 
+            type="textarea" 
+            :rows="3"
+            placeholder="请输入拒绝理由"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="confirmVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitConfirm">提交</el-button>
       </template>
     </el-dialog>
   </div>
@@ -109,18 +160,26 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { getUserPlans } from '@/api/plan'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getUserPlans, confirmPlan } from '@/api/plan'
 
 const loading = ref(false)
 const tableData = ref([])
 const detailVisible = ref(false)
+const confirmVisible = ref(false)
 const currentPlan = ref(null)
+const filterStatus = ref('')
 
 const pagination = reactive({
   pageNum: 1,
   pageSize: 10,
   total: 0
+})
+
+const confirmForm = reactive({
+  planId: null,
+  confirmStatus: 'APPROVED',
+  rejectReason: ''
 })
 
 // 加载数据
@@ -129,7 +188,8 @@ const loadData = async () => {
   try {
     const res = await getUserPlans({
       pageNum: pagination.pageNum,
-      pageSize: pagination.pageSize
+      pageSize: pagination.pageSize,
+      planStatus: filterStatus.value || undefined
     })
     tableData.value = res.data.records
     pagination.total = res.data.total
@@ -144,6 +204,35 @@ const loadData = async () => {
 const handleView = (row) => {
   currentPlan.value = row
   detailVisible.value = true
+}
+
+// 确认计划
+const handleConfirm = (row) => {
+  confirmForm.planId = row.planId
+  confirmForm.confirmStatus = 'APPROVED'
+  confirmForm.rejectReason = ''
+  confirmVisible.value = true
+  detailVisible.value = false
+}
+
+// 提交确认
+const submitConfirm = async () => {
+  if (confirmForm.confirmStatus === 'REJECTED' && !confirmForm.rejectReason) {
+    ElMessage.warning('请输入拒绝理由')
+    return
+  }
+
+  try {
+    await confirmPlan(confirmForm.planId, {
+      confirmStatus: confirmForm.confirmStatus,
+      rejectReason: confirmForm.rejectReason
+    })
+    ElMessage.success('确认成功')
+    confirmVisible.value = false
+    loadData()
+  } catch (error) {
+    ElMessage.error(error.message || '确认失败')
+  }
 }
 
 // 获取难度文本
@@ -192,6 +281,26 @@ const getAuditText = (status) => {
 
 // 获取审核状态类型
 const getAuditType = (status) => {
+  const map = {
+    'PENDING': 'warning',
+    'APPROVED': 'success',
+    'REJECTED': 'danger'
+  }
+  return map[status] || ''
+}
+
+// 获取确认状态文本
+const getConfirmText = (status) => {
+  const map = {
+    'PENDING': '待确认',
+    'APPROVED': '已同意',
+    'REJECTED': '已拒绝'
+  }
+  return map[status] || status
+}
+
+// 获取确认状态类型
+const getConfirmType = (status) => {
   const map = {
     'PENDING': 'warning',
     'APPROVED': 'success',

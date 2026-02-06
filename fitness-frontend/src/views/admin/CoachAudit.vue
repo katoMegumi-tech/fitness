@@ -4,10 +4,16 @@
       <template #header>
         <div class="card-header">
           <span>教练认证审核</span>
+          <el-radio-group v-model="filterStatus" @change="loadData">
+            <el-radio-button label="">全部</el-radio-button>
+            <el-radio-button label="PENDING">待审核</el-radio-button>
+            <el-radio-button label="APPROVED">已通过</el-radio-button>
+            <el-radio-button label="REJECTED">已拒绝</el-radio-button>
+          </el-radio-group>
         </div>
       </template>
 
-      <!-- 待审核列表 -->
+      <!-- 教练列表 -->
       <el-table :data="tableData" v-loading="loading" border>
         <el-table-column prop="userId" label="教练ID" width="80" />
         <el-table-column prop="name" label="姓名" width="120" />
@@ -16,6 +22,13 @@
         <el-table-column prop="yearsOfExperience" label="从业年限" width="100">
           <template #default="{ row }">
             {{ row.yearsOfExperience }}年
+          </template>
+        </el-table-column>
+        <el-table-column label="认证状态" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.certificationStatus === 'PENDING'" type="warning">待审核</el-tag>
+            <el-tag v-else-if="row.certificationStatus === 'APPROVED'" type="success">已通过</el-tag>
+            <el-tag v-else type="danger">已拒绝</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="introduction" label="个人简介" show-overflow-tooltip />
@@ -143,6 +156,7 @@ const auditVisible = ref(false)
 const auditLoading = ref(false)
 const currentCoach = ref(null)
 const auditTitle = ref('')
+const filterStatus = ref('')  // 筛选状态
 
 const pagination = reactive({
   pageNum: 1,
@@ -161,7 +175,8 @@ const loadData = async () => {
   try {
     const res = await getPendingCoaches({
       pageNum: pagination.pageNum,
-      pageSize: pagination.pageSize
+      pageSize: pagination.pageSize,
+      certificationStatus: filterStatus.value || undefined
     })
     tableData.value = res.data.records
     pagination.total = res.data.total
@@ -250,6 +265,9 @@ onMounted(() => {
 }
 
 .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: 18px;
   font-weight: bold;
 }

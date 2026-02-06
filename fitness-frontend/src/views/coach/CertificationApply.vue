@@ -22,7 +22,7 @@
         :model="form"
         :rules="rules"
         label-width="120px"
-        :disabled="certStatus === 'PENDING' || certStatus === 'APPROVED'"
+        :disabled="certStatus === 'PENDING'"
       >
         <el-form-item label="个人简介" prop="introduction">
           <el-input
@@ -75,9 +75,9 @@
             type="primary"
             @click="submitForm"
             :loading="loading"
-            :disabled="certStatus === 'PENDING' || certStatus === 'APPROVED'"
+            :disabled="certStatus === 'PENDING'"
           >
-            提交认证申请
+            {{ certStatus === 'APPROVED' ? '更新认证信息' : '提交认证申请' }}
           </el-button>
           <el-button @click="resetForm">重置</el-button>
         </el-form-item>
@@ -199,8 +199,13 @@ const submitForm = async () => {
       loading.value = true
       try {
         await submitCertification(form)
-        ElMessage.success('认证申请已提交，请等待管理员审核')
+        if (certStatus.value === 'APPROVED') {
+          ElMessage.success('认证信息已更新，请等待管理员重新审核')
+        } else {
+          ElMessage.success('认证申请已提交，请等待管理员审核')
+        }
         certStatus.value = 'PENDING'
+        loadCertStatus()
       } catch (error) {
         ElMessage.error(error.message || '提交失败')
       } finally {
@@ -222,7 +227,7 @@ const resetForm = () => {
 const getStatusText = () => {
   const statusMap = {
     'PENDING': '您的认证申请正在审核中，请耐心等待',
-    'APPROVED': '恭喜！您的认证申请已通过',
+    'APPROVED': '恭喜！您的认证申请已通过。如需更新认证信息，可以修改后重新提交',
     'REJECTED': '很抱歉，您的认证申请未通过，请修改后重新提交'
   }
   return statusMap[certStatus.value] || ''
