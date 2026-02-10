@@ -70,6 +70,7 @@ echo 1. 检查后端服务窗口是否有错误信息
 echo 2. 确认 MySQL 服务已启动
 echo 3. 确认数据库 fitness 已创建并执行了 SQL 脚本
 echo.
-timeout /t 5 /nobreak >nul
-start http://localhost:3000
+echo 请手动访问: http://localhost:3000
+echo.
+pause
 exit

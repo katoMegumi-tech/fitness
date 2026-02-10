@@ -7,8 +7,18 @@
         </div>
       </template>
 
+      <!-- 已绑定提示 -->
+      <el-alert
+        v-if="hasBinding"
+        title="您已绑定教练"
+        type="info"
+        :description="`您当前已绑定教练：${currentBinding?.coachName}，如需更换教练，请先在【我的教练】页面解绑。`"
+        :closable="false"
+        style="margin-bottom: 20px"
+      />
+
       <!-- 教练列表 -->
-      <el-row :gutter="20" v-loading="loading">
+      <el-row :gutter="20" v-loading="loading" :class="{ 'disabled-list': hasBinding }">
         <el-col
           v-for="coach in coachList"
           :key="coach.userId"
@@ -42,7 +52,12 @@
               <p class="coach-intro">{{ coach.introduction }}</p>
             </div>
             <div class="coach-actions">
-              <el-button type="primary" size="small" @click="handleSelect(coach)">
+              <el-button 
+                type="primary" 
+                size="small" 
+                @click="handleSelect(coach)"
+                :disabled="hasBinding"
+              >
                 选择教练
               </el-button>
               <el-button size="small" @click="handleViewDetail(coach)">
@@ -89,7 +104,11 @@
 
       <template #footer>
         <el-button @click="detailVisible = false">关闭</el-button>
-        <el-button type="primary" @click="handleSelect(currentCoach)">
+        <el-button 
+          type="primary" 
+          @click="handleSelect(currentCoach)"
+          :disabled="hasBinding"
+        >
           选择该教练
         </el-button>
       </template>
@@ -101,12 +120,14 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getAvailableCoaches } from '@/api/coach'
-import { applyBinding } from '@/api/binding'
+import { applyBinding, getCurrentBinding } from '@/api/binding'
 
 const loading = ref(false)
 const coachList = ref([])
 const detailVisible = ref(false)
 const currentCoach = ref(null)
+const hasBinding = ref(false)
+const currentBinding = ref(null)
 
 const pagination = reactive({
   pageNum: 1,
@@ -140,8 +161,31 @@ const handleViewDetail = (coach) => {
   detailVisible.value = true
 }
 
+// 检查当前绑定状态
+const checkBindingStatus = async () => {
+  try {
+    const res = await getCurrentBinding()
+    if (res.data) {
+      hasBinding.value = true
+      currentBinding.value = res.data
+    } else {
+      hasBinding.value = false
+      currentBinding.value = null
+    }
+  } catch (error) {
+    // 如果没有绑定，接口可能返回错误，这是正常的
+    hasBinding.value = false
+    currentBinding.value = null
+  }
+}
+
 // 选择教练
 const handleSelect = (coach) => {
+  if (hasBinding.value) {
+    ElMessage.warning('您已绑定教练，请先解绑后再申请')
+    return
+  }
+  
   ElMessageBox.prompt('请输入申请理由（选填）', '申请绑定教练', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
@@ -154,8 +198,8 @@ const handleSelect = (coach) => {
       })
       ElMessage.success('申请已提交，请等待教练处理')
       detailVisible.value = false
-      // 刷新列表，因为申请后可能会影响可选教练
-      loadData()
+      // 刷新绑定状态
+      await checkBindingStatus()
     } catch (error) {
       ElMessage.error(error.message || '申请失败')
     }
@@ -164,7 +208,8 @@ const handleSelect = (coach) => {
   })
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await checkBindingStatus()
   loadData()
 })
 </script>
@@ -221,5 +266,10 @@ onMounted(() => {
 
 .coach-actions {
   margin-top: 15px;
+}
+
+.disabled-list {
+  opacity: 0.6;
+  pointer-events: none;
 }
 </style>

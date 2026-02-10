@@ -173,15 +173,26 @@ public class CheckInService {
             // 审核后状态变为已完结
             checkInRecord.setCheckStatus("COMPLETED");
             
-            // 发送通知给学员
+            // 如果达标，自动解绑
             if (isQualified == 1) {
+                LambdaQueryWrapper<BindRecord> bindWrapper = new LambdaQueryWrapper<>();
+                bindWrapper.eq(BindRecord::getUserId, checkInRecord.getUserId())
+                           .eq(BindRecord::getCoachUserId, coachId)
+                           .isNull(BindRecord::getUnbindTime);
+                BindRecord bindRecord = bindRecordMapper.selectOne(bindWrapper);
+                if (bindRecord != null) {
+                    bindRecord.setUnbindTime(LocalDateTime.now());
+                    bindRecord.setUnbindReason("完成目标，自动解绑");
+                    bindRecordMapper.updateById(bindRecord);
+                }
+                
                 // 达标通知
                 notificationService.sendNotification(
                     checkInRecord.getUserId(),
                     coachId,
                     "CHECK_IN",
                     "恭喜！您已达成健身目标",
-                    "教练已确认您达成健身目标。继续保持，再接再厉！",
+                    "教练已确认您达成健身目标，训练计划完成。您可以重新选择教练开始新的训练！",
                     checkInRecord.getCheckId()
                 );
             } else {

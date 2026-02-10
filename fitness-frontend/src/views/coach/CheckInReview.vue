@@ -167,10 +167,10 @@
             <el-radio :label="0">未达标</el-radio>
           </el-radio-group>
           <div style="color: #67C23A; font-size: 12px; margin-top: 5px">
-            ✓ 已达标：学员完成本次目标，可继续训练
+            ✓ 已达标：自动解除绑定关系，学员完成训练
           </div>
           <div style="color: #E6A23C; font-size: 12px; margin-top: 3px">
-            ✗ 未达标：学员需继续努力，坚持锻炼
+            ✗ 未达标：学员需继续努力，保持绑定关系
           </div>
         </el-form-item>
         <el-form-item label="教练点评">

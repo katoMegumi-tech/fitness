@@ -40,11 +40,26 @@
             <el-button type="primary" size="small" @click="handleView(row)">
               查看详情
             </el-button>
-            <el-button type="success" size="small" @click="handleAudit(row, 'APPROVED')">
+            <el-button 
+              v-if="row.auditStatus === 'PENDING'"
+              type="success" 
+              size="small" 
+              @click="handleAudit(row, 'APPROVED')">
               通过
             </el-button>
-            <el-button type="danger" size="small" @click="handleAudit(row, 'REJECTED')">
+            <el-button 
+              v-if="row.auditStatus === 'PENDING'"
+              type="danger" 
+              size="small" 
+              @click="handleAudit(row, 'REJECTED')">
               拒绝
+            </el-button>
+            <el-button 
+              v-if="row.auditStatus === 'APPROVED' || row.auditStatus === 'REJECTED'"
+              type="warning" 
+              size="small" 
+              @click="handleRevoke(row)">
+              撤销
             </el-button>
           </template>
         </el-table-column>
@@ -212,6 +227,30 @@ const confirmAudit = async () => {
     ElMessage.error(error.message || '审核失败')
   } finally {
     auditLoading.value = false
+  }
+}
+
+// 撤销审核
+const handleRevoke = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要撤销该计划的审核吗？撤销后状态将变为待审核。',
+      '撤销确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    // 调用撤销接口（需要后端支持）
+    await auditPlan(row.planId, { auditStatus: 'PENDING', auditOpinion: '撤销审核' })
+    ElMessage.success('审核已撤销')
+    loadData()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.message || '撤销失败')
+    }
   }
 }
 
