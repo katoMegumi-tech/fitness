@@ -29,7 +29,7 @@
         >
           <el-card class="coach-card" shadow="hover">
             <div class="coach-avatar">
-              <el-avatar :size="80" :src="coach.avatar">
+              <el-avatar :size="80" :src="coach.avatarUrl">
                 {{ coach.name.charAt(0) }}
               </el-avatar>
             </div>
@@ -48,6 +48,10 @@
               </p>
               <p class="coach-experience">
                 从业{{ coach.yearsOfExperience }}年 | 服务{{ coach.totalStudents }}人
+              </p>
+              <p class="coach-certs" v-if="coach.certImages && coach.certImages.length > 0">
+                <el-icon><Medal /></el-icon>
+                <span>{{ coach.certImages.length }}个资质证书</span>
               </p>
               <p class="coach-intro">{{ coach.introduction }}</p>
             </div>
@@ -82,7 +86,7 @@
     </el-card>
 
     <!-- 教练详情对话框 -->
-    <el-dialog v-model="detailVisible" title="教练详情" width="600px">
+    <el-dialog v-model="detailVisible" title="教练详情" width="700px">
       <el-descriptions :column="2" border v-if="currentCoach">
         <el-descriptions-item label="姓名">{{ currentCoach.name }}</el-descriptions-item>
         <el-descriptions-item label="评分">
@@ -102,6 +106,39 @@
         </el-descriptions-item>
       </el-descriptions>
 
+      <!-- 资质证书展示 -->
+      <div v-if="currentCoach && currentCoach.certImages && currentCoach.certImages.length > 0" style="margin-top: 20px">
+        <el-divider content-position="left">资质证书</el-divider>
+        <el-row :gutter="10">
+          <el-col 
+            v-for="(cert, index) in currentCoach.certImages" 
+            :key="index"
+            :xs="24" 
+            :sm="12" 
+            :md="8"
+          >
+            <el-card shadow="hover" :body-style="{ padding: '10px' }" style="margin-bottom: 10px">
+              <el-image
+                :src="getCertImageUrl(cert.path)"
+                :preview-src-list="currentCoach.certImages.map(c => getCertImageUrl(c.path))"
+                :initial-index="index"
+                fit="cover"
+                style="width: 100%; height: 150px; cursor: pointer"
+              >
+                <template #error>
+                  <div class="image-slot">
+                    <el-icon><Picture /></el-icon>
+                  </div>
+                </template>
+              </el-image>
+              <div style="padding: 5px 0; text-align: center; font-size: 12px; color: #909399">
+                {{ cert.name }}
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+      </div>
+
       <template #footer>
         <el-button @click="detailVisible = false">关闭</el-button>
         <el-button 
@@ -119,8 +156,10 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Picture, Medal } from '@element-plus/icons-vue'
 import { getAvailableCoaches } from '@/api/coach'
 import { applyBinding, getCurrentBinding } from '@/api/binding'
+import { getImageUrl } from '@/utils/image'
 
 const loading = ref(false)
 const coachList = ref([])
@@ -135,6 +174,16 @@ const pagination = reactive({
   total: 0
 })
 
+// 获取教练头像URL
+const getCoachAvatar = (avatar) => {
+  return avatar ? getImageUrl(avatar) : ''
+}
+
+// 获取证书图片URL
+const getCertImageUrl = (path) => {
+  return path ? getImageUrl(path) : ''
+}
+
 // 加载教练列表
 const loadData = async () => {
   loading.value = true
@@ -145,7 +194,8 @@ const loadData = async () => {
     })
     coachList.value = res.data.records.map(coach => ({
       ...coach,
-      rating: Number(coach.rating) || 5
+      rating: Number(coach.rating) || 5,
+      avatarUrl: getCoachAvatar(coach.avatar)
     }))
     pagination.total = res.data.total
   } catch (error) {
@@ -252,6 +302,16 @@ onMounted(async () => {
   margin: 5px 0;
 }
 
+.coach-certs {
+  color: #67c23a;
+  font-size: 12px;
+  margin: 5px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
 .coach-intro {
   color: #606266;
   font-size: 14px;
@@ -271,5 +331,16 @@ onMounted(async () => {
 .disabled-list {
   opacity: 0.6;
   pointer-events: none;
+}
+
+.image-slot {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  background: #f5f7fa;
+  color: #909399;
+  font-size: 30px;
 }
 </style>

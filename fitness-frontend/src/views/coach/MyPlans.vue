@@ -1,9 +1,9 @@
 <template>
-  <div class="plan-audit">
+  <div class="my-plans">
     <el-card>
       <template #header>
         <div class="card-header">
-          <span>健身计划审核</span>
+          <span>我的计划</span>
           <el-radio-group v-model="filterStatus" @change="loadData">
             <el-radio-button label="">全部</el-radio-button>
             <el-radio-button label="PENDING">待审核</el-radio-button>
@@ -13,13 +13,17 @@
         </div>
       </template>
 
-      <!-- 待审核列表 -->
+      <!-- 计划列表 -->
       <el-table :data="tableData" v-loading="loading" border>
         <el-table-column prop="planNo" label="计划编号" width="180" />
         <el-table-column prop="planName" label="计划名称" width="150" />
         <el-table-column prop="userName" label="学员" width="120" />
-        <el-table-column prop="coachName" label="教练" width="120" />
         <el-table-column prop="fitnessGoal" label="健身目标" width="100" />
+        <el-table-column prop="planDifficulty" label="难度" width="100">
+          <template #default="{ row }">
+            {{ getDifficultyText(row.planDifficulty) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="planCycle" label="周期" width="80">
           <template #default="{ row }">
             {{ row.planCycle }}天
@@ -30,36 +34,46 @@
             V{{ row.version }}
           </template>
         </el-table-column>
+        <el-table-column prop="auditStatus" label="审核状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="getAuditType(row.auditStatus)">
+              {{ getAuditText(row.auditStatus) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="userConfirmStatus" label="学员确认" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.userConfirmStatus" :type="getConfirmType(row.userConfirmStatus)">
+              {{ getConfirmText(row.userConfirmStatus) }}
+            </el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="planStatus" label="计划状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="getStatusType(row.planStatus)">
+              {{ getStatusText(row.planStatus) }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="createdAt" label="创建时间" width="180">
           <template #default="{ row }">
             {{ formatDateTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="250" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" size="small" @click="handleView(row)">
               查看详情
             </el-button>
-            <el-button 
-              v-if="row.auditStatus === 'PENDING'"
-              type="success" 
-              size="small" 
-              @click="handleAudit(row, 'APPROVED')">
-              通过
-            </el-button>
-            <el-button 
-              v-if="row.auditStatus === 'PENDING'"
-              type="danger" 
-              size="small" 
-              @click="handleAudit(row, 'REJECTED')">
-              拒绝
-            </el-button>
-            <el-button 
-              v-if="row.auditStatus === 'APPROVED' || row.auditStatus === 'REJECTED'"
-              type="warning" 
-              size="small" 
-              @click="handleRevoke(row)">
-              撤销
+            <el-button
+              v-if="row.auditStatus === 'REJECTED'"
+              type="danger"
+              plain
+              size="small"
+              @click="handleView(row)"
+            >
+              拒绝原因
             </el-button>
           </template>
         </el-table-column>
@@ -105,9 +119,6 @@
         <el-descriptions-item label="学员">
           {{ currentPlan.userName }}
         </el-descriptions-item>
-        <el-descriptions-item label="教练">
-          {{ currentPlan.coachName }}
-        </el-descriptions-item>
         <el-descriptions-item label="健身目标">
           {{ currentPlan.fitnessGoal }}
         </el-descriptions-item>
@@ -120,7 +131,22 @@
         <el-descriptions-item label="开始时间">
           {{ formatDateTime(currentPlan.planStartTime) }}
         </el-descriptions-item>
-        <el-descriptions-item label="创建时间" :span="2">
+        <el-descriptions-item label="审核状态">
+          <el-tag :type="getAuditType(currentPlan.auditStatus)">
+            {{ getAuditText(currentPlan.auditStatus) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="学员确认" v-if="currentPlan.userConfirmStatus">
+          <el-tag :type="getConfirmType(currentPlan.userConfirmStatus)">
+            {{ getConfirmText(currentPlan.userConfirmStatus) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="计划状态">
+          <el-tag :type="getStatusType(currentPlan.planStatus)">
+            {{ getStatusText(currentPlan.planStatus) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="创建时间">
           {{ formatDateTime(currentPlan.createdAt) }}
         </el-descriptions-item>
         <el-descriptions-item label="运动计划" :span="2">
@@ -138,41 +164,20 @@
             {{ currentPlan.adjustmentReason }}
           </div>
         </el-descriptions-item>
+        <el-descriptions-item label="审核意见" :span="2" v-if="currentPlan.auditRemark">
+          <div style="white-space: pre-wrap; padding: 10px; background: #e7f5ff; border-radius: 4px">
+            {{ currentPlan.auditRemark }}
+          </div>
+        </el-descriptions-item>
+        <el-descriptions-item label="学员拒绝理由" :span="2" v-if="currentPlan.userRejectReason">
+          <div style="white-space: pre-wrap; padding: 10px; background: #ffe7e7; border-radius: 4px">
+            {{ currentPlan.userRejectReason }}
+          </div>
+        </el-descriptions-item>
       </el-descriptions>
 
       <template #footer>
-        <div style="display: flex; justify-content: space-between">
-          <el-button @click="detailVisible = false">关闭</el-button>
-          <div v-if="currentPlan && currentPlan.auditStatus === 'PENDING'">
-            <el-button type="danger" @click="handleAudit(currentPlan, 'REJECTED')">
-              拒绝审核
-            </el-button>
-            <el-button type="success" @click="handleAudit(currentPlan, 'APPROVED')">
-              通过审核
-            </el-button>
-          </div>
-        </div>
-      </template>
-    </el-dialog>
-
-    <!-- 审核对话框 -->
-    <el-dialog v-model="auditVisible" :title="auditTitle" width="500px">
-      <el-form :model="auditForm" label-width="100px">
-        <el-form-item label="审核意见">
-          <el-input
-            v-model="auditForm.auditOpinion"
-            type="textarea"
-            :rows="4"
-            placeholder="请输入审核意见（选填）"
-          />
-        </el-form-item>
-      </el-form>
-
-      <template #footer>
-        <el-button @click="auditVisible = false">取消</el-button>
-        <el-button type="primary" @click="confirmAudit" :loading="auditLoading">
-          确认
-        </el-button>
+        <el-button @click="detailVisible = false">关闭</el-button>
       </template>
     </el-dialog>
   </div>
@@ -180,17 +185,14 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { getPendingPlans, auditPlan } from '@/api/plan'
+import { ElMessage } from 'element-plus'
+import { getCoachPlans } from '@/api/plan'
 import { getImageUrl } from '@/utils/image'
 
 const loading = ref(false)
-const auditLoading = ref(false)
 const tableData = ref([])
 const detailVisible = ref(false)
-const auditVisible = ref(false)
 const currentPlan = ref(null)
-const auditTitle = ref('')
 const filterStatus = ref('')
 
 const pagination = reactive({
@@ -199,16 +201,11 @@ const pagination = reactive({
   total: 0
 })
 
-const auditForm = reactive({
-  auditStatus: '',
-  auditOpinion: ''
-})
-
 // 加载数据
 const loadData = async () => {
   loading.value = true
   try {
-    const res = await getPendingPlans({
+    const res = await getCoachPlans({
       pageNum: pagination.pageNum,
       pageSize: pagination.pageSize,
       auditStatus: filterStatus.value || undefined
@@ -231,55 +228,6 @@ const handleView = (row) => {
   detailVisible.value = true
 }
 
-// 审核操作
-const handleAudit = (row, status) => {
-  currentPlan.value = row
-  auditForm.auditStatus = status
-  auditForm.auditOpinion = ''
-  auditTitle.value = status === 'APPROVED' ? '通过审核' : '拒绝审核'
-  auditVisible.value = true
-  detailVisible.value = false
-}
-
-// 确认审核
-const confirmAudit = async () => {
-  auditLoading.value = true
-  try {
-    await auditPlan(currentPlan.value.planId, auditForm)
-    ElMessage.success('审核完成')
-    auditVisible.value = false
-    loadData()
-  } catch (error) {
-    ElMessage.error(error.message || '审核失败')
-  } finally {
-    auditLoading.value = false
-  }
-}
-
-// 撤销审核
-const handleRevoke = async (row) => {
-  try {
-    await ElMessageBox.confirm(
-      '确定要撤销该计划的审核吗？撤销后状态将变为待审核。',
-      '撤销确认',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    
-    // 调用撤销接口（需要后端支持）
-    await auditPlan(row.planId, { auditStatus: 'PENDING', auditOpinion: '撤销审核' })
-    ElMessage.success('审核已撤销')
-    loadData()
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.message || '撤销失败')
-    }
-  }
-}
-
 // 获取难度文本
 const getDifficultyText = (difficulty) => {
   const map = {
@@ -288,6 +236,70 @@ const getDifficultyText = (difficulty) => {
     'ADVANCED': '高级'
   }
   return map[difficulty] || difficulty
+}
+
+// 获取审核状态文本
+const getAuditText = (status) => {
+  const map = {
+    'PENDING': '待审核',
+    'APPROVED': '已通过',
+    'REJECTED': '已拒绝'
+  }
+  return map[status] || status
+}
+
+// 获取审核状态类型
+const getAuditType = (status) => {
+  const map = {
+    'PENDING': 'warning',
+    'APPROVED': 'success',
+    'REJECTED': 'danger'
+  }
+  return map[status] || ''
+}
+
+// 获取确认状态文本
+const getConfirmText = (status) => {
+  const map = {
+    'PENDING': '待确认',
+    'APPROVED': '已同意',
+    'REJECTED': '已拒绝'
+  }
+  return map[status] || status
+}
+
+// 获取确认状态类型
+const getConfirmType = (status) => {
+  const map = {
+    'PENDING': 'warning',
+    'APPROVED': 'success',
+    'REJECTED': 'danger'
+  }
+  return map[status] || ''
+}
+
+// 获取计划状态文本
+const getStatusText = (status) => {
+  const map = {
+    'DRAFT': '草稿',
+    'PENDING': '待审核',
+    'ACTIVE': '进行中',
+    'COMPLETED': '已完成',
+    'CANCELLED': '已取消'
+  }
+  return map[status] || status
+}
+
+// 获取计划状态类型
+const getStatusType = (status) => {
+  const map = {
+    'DRAFT': 'info',
+    'PENDING': 'warning',
+    'ACTIVE': 'success',
+    'COMPLETED': '',
+    'CANCELLED': 'danger'
+  }
+  return map[status] || ''
 }
 
 // 格式化日期时间
@@ -302,7 +314,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.plan-audit {
+.my-plans {
   padding: 20px;
 }
 

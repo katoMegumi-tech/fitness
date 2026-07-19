@@ -31,17 +31,25 @@
             <el-icon><User /></el-icon>
             <span>我的学员</span>
           </el-menu-item>
-          <el-menu-item index="plan-editor">
-            <el-icon><EditPen /></el-icon>
-            <span>制定计划</span>
+          <el-menu-item index="my-plans">
+            <el-icon><Document /></el-icon>
+            <span>我的计划</span>
           </el-menu-item>
           <el-menu-item index="checkin-review">
             <el-icon><CircleCheck /></el-icon>
             <span>打卡审核</span>
           </el-menu-item>
+          <el-menu-item index="checkin-stats">
+            <el-icon><DataAnalysis /></el-icon>
+            <span>打卡统计</span>
+          </el-menu-item>
           <el-menu-item index="articles">
             <el-icon><Reading /></el-icon>
             <span>文章管理</span>
+          </el-menu-item>
+          <el-menu-item index="article-list">
+            <el-icon><Notebook /></el-icon>
+            <span>健身科普</span>
           </el-menu-item>
           <el-menu-item index="notifications">
             <el-icon><Bell /></el-icon>
@@ -61,7 +69,7 @@
             <div class="header-right">
               <el-dropdown>
                 <span class="user-dropdown">
-                  <el-avatar :size="32" style="margin-right: 8px">
+                  <el-avatar :size="32" :src="userAvatarUrl" style="margin-right: 8px">
                     {{ userStore.userInfo.name?.charAt(0) }}
                   </el-avatar>
                   <span>{{ userStore.userInfo.name }}</span>
@@ -69,7 +77,11 @@
                 </span>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item @click="handleLogout">
+                    <el-dropdown-item @click="router.push('/coach/profile')">
+                      <el-icon><User /></el-icon>
+                      个人资料
+                    </el-dropdown-item>
+                    <el-dropdown-item divided @click="handleLogout">
                       <el-icon><SwitchButton /></el-icon>
                       退出登录
                     </el-dropdown-item>
@@ -146,17 +158,23 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import { ElMessage } from 'element-plus'
-import { HomeFilled, Medal, Message, User, EditPen, Reading, Bell, ArrowDown, ArrowRight, SwitchButton, TrophyBase, CircleCheck } from '@element-plus/icons-vue'
+import { HomeFilled, Medal, Message, User, EditPen, Document, Reading, Bell, ArrowDown, ArrowRight, SwitchButton, TrophyBase, CircleCheck, DataAnalysis, Notebook } from '@element-plus/icons-vue'
 import { logout } from '@/api/auth'
+import { getImageUrl } from '@/utils/image'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const activeMenu = ref('dashboard')
+
+// 用户头像URL
+const userAvatarUrl = computed(() => {
+  return userStore.userInfo.avatar ? getImageUrl(userStore.userInfo.avatar) : ''
+})
 
 // 监听路由变化更新菜单激活状态
 watch(() => route.path, (newPath) => {
@@ -169,11 +187,17 @@ watch(() => route.path, (newPath) => {
   } else if (newPath === '/coach/students') {
     activeMenu.value = 'students'
   } else if (newPath === '/coach/plan-editor') {
-    activeMenu.value = 'plan-editor'
+    activeMenu.value = 'students'
+  } else if (newPath === '/coach/my-plans') {
+    activeMenu.value = 'my-plans'
   } else if (newPath === '/coach/checkin-review') {
     activeMenu.value = 'checkin-review'
+  } else if (newPath === '/coach/checkin-stats') {
+    activeMenu.value = 'checkin-stats'
   } else if (newPath === '/coach/articles') {
     activeMenu.value = 'articles'
+  } else if (newPath.startsWith('/coach/article')) {
+    activeMenu.value = 'article-list'
   } else if (newPath === '/coach/notifications') {
     activeMenu.value = 'notifications'
   }
@@ -187,9 +211,11 @@ const handleMenuSelect = (index) => {
     'certification': '/coach/certification',
     'bind-applies': '/coach/bind-applies',
     'students': '/coach/students',
-    'plan-editor': '/coach/plan-editor',
+    'my-plans': '/coach/my-plans',
     'checkin-review': '/coach/checkin-review',
+    'checkin-stats': '/coach/checkin-stats',
     'articles': '/coach/articles',
+    'article-list': '/coach/article-list',
     'notifications': '/coach/notifications'
   }
   

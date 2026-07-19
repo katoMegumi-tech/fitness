@@ -166,11 +166,9 @@
             <el-radio :label="1">已达标</el-radio>
             <el-radio :label="0">未达标</el-radio>
           </el-radio-group>
-          <div style="color: #67C23A; font-size: 12px; margin-top: 5px">
-            ✓ 已达标：自动解除绑定关系，学员完成训练
-          </div>
-          <div style="color: #E6A23C; font-size: 12px; margin-top: 3px">
-            ✗ 未达标：学员需继续努力，保持绑定关系
+          <div style="margin-top: 8px; line-height: 1.7">
+            <div style="color: #67C23A; font-size: 12px">已达标：自动解除绑定关系，学员完成训练</div>
+            <div style="color: #E6A23C; font-size: 12px">未达标：保持绑定关系，学员继续训练；如有需要可重新制定计划</div>
           </div>
         </el-form-item>
         <el-form-item label="教练点评">
@@ -192,10 +190,12 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getPendingCheckIns, reviewCheckIn } from '@/api/checkin'
 import { getImageUrl } from '@/utils/image'
 
+const router = useRouter()
 const loading = ref(false)
 const tableData = ref([])
 const detailVisible = ref(false)
@@ -264,23 +264,97 @@ const submitReview = async () => {
     return
   }
 
-  try {
+  // 如果选择未达标，询问是否重新制定计划
+  if (reviewForm.isQualified === 0) {
+    try {
+      await ElMessageBox.confirm(
+        '学员未达标，是否需要重新制定锻炼计划？',
+        '重新制定计划',
+        {
+          confirmButtonText: '是，重新制定',
+          cancelButtonText: '否，继续原计划',
+          type: 'warning',
+          distinguishCancelAndClose: true
+        }
+      )
+      
+      // 用户选择"是"，先提交审核，然后跳转到制定计划页面
+      submitting.value = true
+      try {
+        await reviewCheckIn(currentCheckIn.value.checkInId, reviewForm)
+        ElMessage.success('审核完成，即将跳转到制定计划页面')
+        reviewVisible.value = false
+        
+        // 跳转到制定计划页面，并传递学员ID
+        setTimeout(() => {
+          router.push({
+            path: '/coach/plan-editor',
+            query: {
+              userId: currentCheckIn.value.userId,
+              userName: currentCheckIn.value.userName,
+              fromReview: 'true'
+            }
+          })
+        }, 1000)
+      } catch (error) {
+        ElMessage.error(error.message || '审核失败')
+      } finally {
+        submitting.value = false
+      }
+    } catch (action) {
+      if (action === 'cancel') {
+        // 用户选择"否"，只提交审核，不跳转
+        submitting.value = true
+        try {
+          await reviewCheckIn(currentCheckIn.value.checkInId, reviewForm)
+          ElMessage.success('审核完成，学员将继续按原计划训练')
+          reviewVisible.value = false
+          loadPendingCheckIns()
+        } catch (error) {
+          ElMessage.error(error.message || '审核失败')
+        } finally {
+          submitting.value = false
+        }
+      }
+      // 用户点击关闭按钮，不做任何操作
+    }
+  } else {
+    // 选择已达标，直接提交审核
     submitting.value = true
-    await reviewCheckIn(currentCheckIn.value.checkInId, reviewForm)
-    ElMessage.success('审核完成')
-    reviewVisible.value = false
-    loadPendingCheckIns()
-  } catch (error) {
-    ElMessage.error(error.message || '审核失败')
-  } finally {
-    submitting.value = false
+    try {
+      await reviewCheckIn(currentCheckIn.value.checkInId, reviewForm)
+      ElMessage.success('审核完成，学员已达标，自动解除绑定')
+      reviewVisible.value = false
+      loadPendingCheckIns()
+    } catch (error) {
+      ElMessage.error(error.message || '审核失败')
+    } finally {
+      submitting.value = false
+    }
   }
 }
 
 // 获取图片列表
 const getImageList = (images) => {
   if (!images) return []
-  return typeof images === 'string' ? images.split(',').filter(img => img) : images
+  if (Array.isArray(images)) return images.filter(Boolean)
+  if (typeof images !== 'string') return []
+  const trimmed = images.trim()
+  if (!trimmed) return []
+  try {
+    const parsed = JSON.parse(trimmed)
+    if (Array.isArray(parsed)) {
+      return parsed.filter(Boolean)
+    }
+  } catch (error) {
+    // fall through to comma-separated parsing
+  }
+  return trimmed
+    .replace(/^\[/, '')
+    .replace(/\]$/, '')
+    .split(',')
+    .map(img => img.replace(/^["'\s]+|["'\s]+$/g, ''))
+    .filter(Boolean)
 }
 
 // 进度条颜色

@@ -61,7 +61,7 @@
               type="success" 
               size="small" 
               @click="handleConfirm(row)">
-              确认计划
+              开始跟练
             </el-button>
           </template>
         </el-table-column>
@@ -81,13 +81,28 @@
     </el-card>
 
     <!-- 详情对话框 -->
-    <el-dialog v-model="detailVisible" title="计划详情" width="800px">
+    <el-dialog v-model="detailVisible" title="计划详情" width="900px">
+      <div
+        v-if="currentPlan"
+        style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px; padding: 12px 16px; background: #f5f7fa; border-radius: 8px;"
+      >
+        <el-avatar :size="56" :src="currentPlan.coachAvatarUrl">
+          {{ currentPlan.coachName?.charAt(0) }}
+        </el-avatar>
+        <div>
+          <div style="font-size: 14px; color: #909399;">教练</div>
+          <div style="font-size: 18px; font-weight: 600;">{{ currentPlan.coachName || '未分配' }}</div>
+        </div>
+      </div>
       <el-descriptions :column="2" border v-if="currentPlan">
         <el-descriptions-item label="计划编号" :span="2">
           {{ currentPlan.planNo }}
         </el-descriptions-item>
         <el-descriptions-item label="计划名称">
           {{ currentPlan.planName }}
+        </el-descriptions-item>
+        <el-descriptions-item label="版本">
+          V{{ currentPlan.version }}
         </el-descriptions-item>
         <el-descriptions-item label="教练">
           {{ currentPlan.coachName }}
@@ -101,44 +116,79 @@
         <el-descriptions-item label="周期">
           {{ currentPlan.planCycle }}天
         </el-descriptions-item>
-        <el-descriptions-item label="版本">
-          V{{ currentPlan.version }}
-        </el-descriptions-item>
         <el-descriptions-item label="开始时间">
           {{ formatDateTime(currentPlan.planStartTime) }}
         </el-descriptions-item>
-        <el-descriptions-item label="结束时间">
-          {{ formatDateTime(currentPlan.planEndTime) }}
+        <el-descriptions-item label="审核状态">
+          <el-tag :type="getAuditType(currentPlan.auditStatus)">
+            {{ getAuditText(currentPlan.auditStatus) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="确认状态" v-if="currentPlan.userConfirmStatus">
+          <el-tag :type="getConfirmType(currentPlan.userConfirmStatus)">
+            {{ getConfirmText(currentPlan.userConfirmStatus) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="计划状态">
+          <el-tag :type="getStatusType(currentPlan.planStatus)">
+            {{ getStatusText(currentPlan.planStatus) }}
+          </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="运动计划" :span="2">
-          <div style="white-space: pre-wrap">{{ currentPlan.exercisePlan }}</div>
+          <div style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; max-height: 300px; overflow-y: auto; padding: 10px; background: #f5f7fa; border-radius: 4px">
+            {{ currentPlan.exercisePlan || '暂无' }}
+          </div>
         </el-descriptions-item>
         <el-descriptions-item label="饮食计划" :span="2">
-          <div style="white-space: pre-wrap">{{ currentPlan.dietPlan }}</div>
+          <div style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; max-height: 300px; overflow-y: auto; padding: 10px; background: #f5f7fa; border-radius: 4px">
+            {{ currentPlan.dietPlan || '暂无' }}
+          </div>
         </el-descriptions-item>
-        <el-descriptions-item label="调整原因" :span="2" v-if="currentPlan.adjustmentReason">
-          {{ currentPlan.adjustmentReason }}
+        <el-descriptions-item :label="currentPlan.parentPlanId ? '教练点评' : '计划说明'" :span="2" v-if="currentPlan.adjustmentReason">
+          <div style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; padding: 10px; background: #fff3cd; border-radius: 4px">
+            {{ currentPlan.adjustmentReason }}
+          </div>
+        </el-descriptions-item>
+        <el-descriptions-item label="审核意见" :span="2" v-if="currentPlan.auditRemark">
+          <div style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; padding: 10px; background: #e7f5ff; border-radius: 4px">
+            {{ currentPlan.auditRemark }}
+          </div>
+        </el-descriptions-item>
+        <el-descriptions-item label="拒绝理由" :span="2" v-if="currentPlan.userRejectReason">
+          <div style="white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; padding: 10px; background: #ffe7e7; border-radius: 4px">
+            {{ currentPlan.userRejectReason }}
+          </div>
         </el-descriptions-item>
       </el-descriptions>
 
       <template #footer>
-        <el-button @click="detailVisible = false">关闭</el-button>
-        <el-button 
-          v-if="currentPlan.auditStatus === 'APPROVED' && currentPlan.userConfirmStatus === 'PENDING'"
-          type="success" 
-          @click="handleConfirm(currentPlan)">
-          确认计划
-        </el-button>
+        <div style="display: flex; justify-content: space-between">
+          <el-button @click="detailVisible = false">关闭</el-button>
+          <div>
+            <el-button 
+              v-if="currentPlan && currentPlan.planStatus === 'ACTIVE'"
+              type="primary" 
+              @click="goToCheckIn">
+              打卡
+            </el-button>
+            <el-button 
+              v-if="currentPlan && currentPlan.auditStatus === 'APPROVED' && currentPlan.userConfirmStatus === 'PENDING'"
+              type="success" 
+              @click="handleConfirm(currentPlan)">
+              开始跟练
+            </el-button>
+          </div>
+        </div>
       </template>
     </el-dialog>
 
     <!-- 确认对话框 -->
-    <el-dialog v-model="confirmVisible" title="确认计划" width="500px">
+    <el-dialog v-model="confirmVisible" title="开始跟练" width="500px">
       <el-form :model="confirmForm" label-width="100px">
         <el-form-item label="确认结果">
           <el-radio-group v-model="confirmForm.confirmStatus">
-            <el-radio label="APPROVED">同意</el-radio>
-            <el-radio label="REJECTED">拒绝</el-radio>
+            <el-radio label="APPROVED">开始跟练</el-radio>
+            <el-radio label="REJECTED">暂不跟练</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="拒绝理由" v-if="confirmForm.confirmStatus === 'REJECTED'">
@@ -160,9 +210,12 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getUserPlans, confirmPlan } from '@/api/plan'
+import { getImageUrl } from '@/utils/image'
 
+const router = useRouter()
 const loading = ref(false)
 const tableData = ref([])
 const detailVisible = ref(false)
@@ -202,8 +255,17 @@ const loadData = async () => {
 
 // 查看详情
 const handleView = (row) => {
-  currentPlan.value = row
+  currentPlan.value = {
+    ...row,
+    coachAvatarUrl: row.coachAvatar ? getImageUrl(row.coachAvatar) : ''
+  }
   detailVisible.value = true
+}
+
+// 跳转到打卡页面
+const goToCheckIn = () => {
+  detailVisible.value = false
+  router.push('/user/checkin')
 }
 
 // 确认计划
@@ -326,6 +388,9 @@ onMounted(() => {
 }
 
 .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: 18px;
   font-weight: bold;
 }

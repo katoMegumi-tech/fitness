@@ -16,6 +16,15 @@
         style="margin-bottom: 20px"
       />
 
+      <el-alert
+        v-if="auditOpinion"
+        title="管理员审核意见"
+        type="info"
+        :description="auditOpinion"
+        :closable="false"
+        style="margin-bottom: 20px"
+      />
+
       <!-- 认证表单 -->
       <el-form
         ref="formRef"
@@ -97,6 +106,7 @@ const formRef = ref(null)
 const loading = ref(false)
 const certStatus = ref(null)
 const fileList = ref([])
+const auditOpinion = ref('')
 
 const form = reactive({
   introduction: '',
@@ -126,6 +136,7 @@ const loadCertStatus = async () => {
   try {
     const res = await getCertificationStatus()
     certStatus.value = res.data.certificationStatus
+    auditOpinion.value = res.data.auditOpinion || ''
     
     // 如果已有认证信息，回显数据
     if (res.data.certificationStatus !== 'NOT_APPLIED') {

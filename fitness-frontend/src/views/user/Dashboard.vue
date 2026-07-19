@@ -23,10 +23,6 @@
             <el-icon><User /></el-icon>
             <span>我的资料</span>
           </el-menu-item>
-          <el-menu-item index="checkin">
-            <el-icon><Calendar /></el-icon>
-            <span>每日打卡</span>
-          </el-menu-item>
           <el-menu-item index="coaches">
             <el-icon><UserFilled /></el-icon>
             <span>选择教练</span>
@@ -38,6 +34,10 @@
           <el-menu-item index="plans">
             <el-icon><Document /></el-icon>
             <span>我的计划</span>
+          </el-menu-item>
+          <el-menu-item index="checkin">
+            <el-icon><Calendar /></el-icon>
+            <span>每日打卡</span>
           </el-menu-item>
           <el-menu-item index="articles">
             <el-icon><Reading /></el-icon>
@@ -61,7 +61,7 @@
             <div class="header-right">
               <el-dropdown>
                 <span class="user-dropdown">
-                  <el-avatar :size="32" style="margin-right: 8px">
+                  <el-avatar :size="32" :src="userAvatarUrl" style="margin-right: 8px">
                     {{ userStore.userInfo.name?.charAt(0) }}
                   </el-avatar>
                   <span>{{ userStore.userInfo.name }}</span>
@@ -134,17 +134,23 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import { ElMessage } from 'element-plus'
 import { HomeFilled, User, UserFilled, Document, Calendar, Avatar, Reading, Bell, ArrowDown, ArrowRight, SwitchButton, TrophyBase } from '@element-plus/icons-vue'
 import { logout } from '@/api/auth'
+import { getImageUrl } from '@/utils/image'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const activeMenu = ref('dashboard')
+
+// 用户头像URL
+const userAvatarUrl = computed(() => {
+  return userStore.userInfo.avatar ? getImageUrl(userStore.userInfo.avatar) : ''
+})
 
 // 监听路由变化更新菜单激活状态
 watch(() => route.path, (newPath) => {
@@ -152,14 +158,14 @@ watch(() => route.path, (newPath) => {
     activeMenu.value = 'dashboard'
   } else if (newPath === '/user/profile') {
     activeMenu.value = 'profile'
-  } else if (newPath === '/user/checkin') {
-    activeMenu.value = 'checkin'
   } else if (newPath === '/user/coaches') {
     activeMenu.value = 'coaches'
   } else if (newPath === '/user/my-coach') {
     activeMenu.value = 'my-coach'
   } else if (newPath === '/user/plans') {
     activeMenu.value = 'plans'
+  } else if (newPath === '/user/checkin') {
+    activeMenu.value = 'checkin'
   } else if (newPath === '/user/articles') {
     activeMenu.value = 'articles'
   } else if (newPath === '/user/notifications') {
@@ -175,10 +181,10 @@ const handleMenuSelect = (index) => {
   const routeMap = {
     'dashboard': '/user/dashboard',
     'profile': '/user/profile',
-    'checkin': '/user/checkin',
     'coaches': '/user/coaches',
     'my-coach': '/user/my-coach',
     'plans': '/user/plans',
+    'checkin': '/user/checkin',
     'articles': '/user/articles',
     'notifications': '/user/notifications'
   }

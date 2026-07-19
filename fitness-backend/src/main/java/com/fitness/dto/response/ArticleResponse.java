@@ -22,6 +22,7 @@ public class ArticleResponse {
     private Integer isTop;
     private LocalDateTime publishTime;
     private String auditStatus;
+    private String auditRemark;
     private Integer viewCount;
     private Integer likeCount;
     private Integer collectCount;

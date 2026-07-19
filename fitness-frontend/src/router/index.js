@@ -111,6 +111,12 @@ const routes = [
         meta: { title: '制定计划' }
       },
       {
+        path: 'my-plans',
+        name: 'MyPlans',
+        component: () => import('@/views/coach/MyPlans.vue'),
+        meta: { title: '我的计划' }
+      },
+      {
         path: 'articles',
         name: 'CoachArticles',
         component: () => import('@/views/coach/ArticleManage.vue'),
@@ -121,6 +127,30 @@ const routes = [
         name: 'CheckInReview',
         component: () => import('@/views/coach/CheckInReview.vue'),
         meta: { title: '打卡审核' }
+      },
+      {
+        path: 'checkin-stats',
+        name: 'CheckInStats',
+        component: () => import('@/views/coach/CheckInStats.vue'),
+        meta: { title: '打卡统计' }
+      },
+      {
+        path: 'article-list',
+        name: 'CoachArticleList',
+        component: () => import('@/views/coach/ArticleList.vue'),
+        meta: { title: '健身科普' }
+      },
+      {
+        path: 'article/:id',
+        name: 'CoachArticleDetail',
+        component: () => import('@/views/coach/ArticleDetail.vue'),
+        meta: { title: '文章详情' }
+      },
+      {
+        path: 'profile',
+        name: 'CoachProfile',
+        component: () => import('@/views/coach/Profile.vue'),
+        meta: { title: '个人资料' }
       },
       {
         path: 'notifications',
@@ -158,6 +188,24 @@ const routes = [
         name: 'ArticleAudit',
         component: () => import('@/views/admin/ArticleAudit.vue'),
         meta: { title: '文章审核' }
+      },
+      {
+        path: 'article-list',
+        name: 'AdminArticleList',
+        component: () => import('@/views/admin/ArticleList.vue'),
+        meta: { title: '健身科普' }
+      },
+      {
+        path: 'article/:id',
+        name: 'AdminArticleDetail',
+        component: () => import('@/views/admin/ArticleDetail.vue'),
+        meta: { title: '文章详情' }
+      },
+      {
+        path: 'profile',
+        name: 'AdminProfile',
+        component: () => import('@/views/admin/Profile.vue'),
+        meta: { title: '个人资料' }
       },
       {
         path: 'notifications',

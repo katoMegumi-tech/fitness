@@ -108,4 +108,30 @@ public class CheckInController {
         IPage<Map<String, Object>> page = checkInService.getPendingCheckIns(pageNum, pageSize, checkType);
         return Result.success(page);
     }
+    
+    /**
+     * 获取学员打卡统计（教练端）
+     */
+    @GetMapping("/coach/stats")
+    @SaCheckRole("COACH")
+    public Result<IPage<Map<String, Object>>> getStudentCheckInStats(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        Long coachId = StpUtil.getLoginIdAsLong();
+        IPage<Map<String, Object>> page = checkInService.getStudentCheckInStats(coachId, pageNum, pageSize);
+        return Result.success(page);
+    }
+    
+    /**
+     * 获取学员打卡记录列表（教练端）
+     */
+    @GetMapping("/coach/records")
+    @SaCheckRole("COACH")
+    public Result<IPage<Map<String, Object>>> getStudentCheckInRecords(
+            @RequestParam Long userId,
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "50") Integer pageSize) {
+        IPage<Map<String, Object>> page = checkInService.getStudentCheckInRecords(userId, pageNum, pageSize);
+        return Result.success(page);
+    }
 }

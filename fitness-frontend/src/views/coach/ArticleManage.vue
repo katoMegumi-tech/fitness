@@ -38,6 +38,12 @@
         <el-table-column prop="viewCount" label="浏览" width="80" />
         <el-table-column prop="likeCount" label="点赞" width="80" />
         <el-table-column prop="collectCount" label="收藏" width="80" />
+        <el-table-column label="审核备注" min-width="160" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="row.auditRemark">{{ row.auditRemark }}</span>
+            <span v-else style="color: #909399">-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="createdAt" label="创建时间" width="180">
           <template #default="{ row }">
             {{ formatTime(row.createdAt) }}
@@ -58,9 +64,6 @@
               @click="publishArticle(row.articleId)">
               提交审核
             </el-button>
-            <el-tag v-if="row.auditStatus === 'REJECTED'" type="danger" size="small">
-              {{ row.auditRemark }}
-            </el-tag>
             <el-button size="small" type="danger" @click="deleteArticle(row.articleId)">删除</el-button>
           </template>
         </el-table-column>
@@ -112,11 +115,30 @@
           <el-input v-model="articleForm.tags" placeholder="多个标签用逗号分隔" />
         </el-form-item>
         <el-form-item label="文章内容" required>
-          <el-input 
-            v-model="articleForm.content" 
-            type="textarea" 
-            :rows="15"
-            placeholder="请输入文章内容（支持HTML）" />
+          <div class="editor-shell">
+            <div class="editor-toolbar">
+              <el-button size="small" @click="formatArticle('bold')">B</el-button>
+              <el-button size="small" @click="formatArticle('italic')">I</el-button>
+              <el-button size="small" @click="formatArticle('underline')">U</el-button>
+              <el-button size="small" @click="formatArticle('insertUnorderedList')">列表</el-button>
+              <el-button size="small" @click="formatArticle('formatBlock', 'h2')">标题</el-button>
+              <el-button size="small" @click="triggerInsertEditorImage">插入图片</el-button>
+              <el-button size="small" @click="formatArticle('removeFormat')">清除格式</el-button>
+            </div>
+            <div
+              ref="editorRef"
+              class="article-editor"
+              contenteditable="true"
+              @input="handleEditorInput"
+            ></div>
+            <input
+              ref="editorImageInputRef"
+              type="file"
+              accept="image/*"
+              style="display: none"
+              @change="handleEditorImageChange"
+            >
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -130,10 +152,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getMyArticles, createArticle, updateArticle, publishArticle as publishArticleApi, deleteArticle as deleteArticleApi } from '@/api/article'
 import { uploadSingle } from '@/api/upload'
+import { getImageUrl } from '@/utils/image'
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -141,6 +164,8 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const articleList = ref([])
 const filterStatus = ref('')
+const editorRef = ref(null)
+const editorImageInputRef = ref(null)
 
 const articleForm = reactive({
   articleId: null,
@@ -188,6 +213,9 @@ const formatTime = (time) => {
 const showCreateDialog = () => {
   isEdit.value = false
   dialogVisible.value = true
+  nextTick(() => {
+    setEditorContent('')
+  })
 }
 
 // 编辑文章
@@ -200,6 +228,51 @@ const editArticle = (article) => {
   articleForm.coverImage = article.coverImage
   articleForm.tags = article.tags
   dialogVisible.value = true
+  nextTick(() => {
+    setEditorContent(article.content || '')
+  })
+}
+
+const setEditorContent = (content) => {
+  if (!editorRef.value) return
+  editorRef.value.innerHTML = content || ''
+}
+
+const handleEditorInput = () => {
+  articleForm.content = editorRef.value?.innerHTML || ''
+}
+
+const focusEditor = () => {
+  editorRef.value?.focus()
+}
+
+const formatArticle = (command, value = null) => {
+  focusEditor()
+  document.execCommand(command, false, value)
+  handleEditorInput()
+}
+
+const triggerInsertEditorImage = () => {
+  editorImageInputRef.value?.click()
+}
+
+const handleEditorImageChange = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  try {
+    const res = await uploadSingle(file)
+    focusEditor()
+    document.execCommand('insertImage', false, getImageUrl(res.data))
+    handleEditorInput()
+    ElMessage.success('图片上传成功')
+  } catch (error) {
+    ElMessage.error('图片上传失败')
+  } finally {
+    if (editorImageInputRef.value) {
+      editorImageInputRef.value.value = ''
+    }
+  }
 }
 
 // 处理封面上传
@@ -282,6 +355,7 @@ const resetForm = () => {
   articleForm.content = ''
   articleForm.coverImage = ''
   articleForm.tags = ''
+  setEditorContent('')
 }
 
 onMounted(() => {
@@ -300,5 +374,40 @@ onMounted(() => {
   align-items: center;
   font-size: 18px;
   font-weight: bold;
+}
+
+.editor-shell {
+  width: 100%;
+  border: 1px solid var(--el-border-color);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.editor-toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  background: #f5f7fa;
+  border-bottom: 1px solid var(--el-border-color);
+}
+
+.article-editor {
+  min-height: 320px;
+  padding: 12px;
+  outline: none;
+  line-height: 1.8;
+  word-break: break-word;
+}
+
+.article-editor:empty::before {
+  content: '请输入文章内容，可插入图片';
+  color: #a8abb2;
+}
+
+.article-editor :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 8px 0;
 }
 </style>

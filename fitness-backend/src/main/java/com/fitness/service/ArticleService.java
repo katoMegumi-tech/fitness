@@ -335,13 +335,18 @@ public class ArticleService {
     /**
      * 查询我的文章（教练）
      */
-    public Page<ArticleResponse> getMyArticles(int pageNum, int pageSize) {
+    public Page<ArticleResponse> getMyArticles(int pageNum, int pageSize, String auditStatus) {
         Long coachId = StpUtil.getLoginIdAsLong();
         
         Page<FitnessArticle> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<FitnessArticle> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FitnessArticle::getAuthorId, coachId)
-               .orderByDesc(FitnessArticle::getCreatedAt);
+        wrapper.eq(FitnessArticle::getAuthorId, coachId);
+
+        if (auditStatus != null && !auditStatus.isEmpty()) {
+            wrapper.eq(FitnessArticle::getAuditStatus, auditStatus);
+        }
+
+        wrapper.orderByDesc(FitnessArticle::getCreatedAt);
         
         Page<FitnessArticle> articlePage = articleMapper.selectPage(page, wrapper);
         

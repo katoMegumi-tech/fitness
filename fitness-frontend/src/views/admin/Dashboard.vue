@@ -31,6 +31,10 @@
             <el-icon><Reading /></el-icon>
             <span>文章审核</span>
           </el-menu-item>
+          <el-menu-item index="article-list">
+            <el-icon><Notebook /></el-icon>
+            <span>健身科普</span>
+          </el-menu-item>
           <el-menu-item index="notifications">
             <el-icon><Bell /></el-icon>
             <span>通知管理</span>
@@ -49,7 +53,7 @@
             <div class="header-right">
               <el-dropdown>
                 <span class="user-dropdown">
-                  <el-avatar :size="32" style="margin-right: 8px">
+                  <el-avatar :size="32" :src="userAvatarUrl" style="margin-right: 8px">
                     {{ userStore.userInfo.name?.charAt(0) }}
                   </el-avatar>
                   <span>{{ userStore.userInfo.name }}</span>
@@ -57,7 +61,11 @@
                 </span>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item @click="handleLogout">
+                    <el-dropdown-item @click="router.push('/admin/profile')">
+                      <el-icon><UserFilled /></el-icon>
+                      个人资料
+                    </el-dropdown-item>
+                    <el-dropdown-item divided @click="handleLogout">
                       <el-icon><SwitchButton /></el-icon>
                       退出登录
                     </el-dropdown-item>
@@ -122,17 +130,23 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import { ElMessage } from 'element-plus'
-import { HomeFilled, UserFilled, Document, Reading, Bell, ArrowDown, ArrowRight, SwitchButton, TrophyBase } from '@element-plus/icons-vue'
+import { HomeFilled, UserFilled, Document, Reading, Bell, ArrowDown, ArrowRight, SwitchButton, TrophyBase, Notebook } from '@element-plus/icons-vue'
 import { logout } from '@/api/auth'
+import { getImageUrl } from '@/utils/image'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const activeMenu = ref('dashboard')
+
+// 用户头像URL
+const userAvatarUrl = computed(() => {
+  return userStore.userInfo.avatar ? getImageUrl(userStore.userInfo.avatar) : ''
+})
 
 // 监听路由变化更新菜单激活状态
 watch(() => route.path, (newPath) => {
@@ -144,6 +158,8 @@ watch(() => route.path, (newPath) => {
     activeMenu.value = 'plan-audit'
   } else if (newPath === '/admin/article-audit') {
     activeMenu.value = 'article-audit'
+  } else if (newPath.startsWith('/admin/article')) {
+    activeMenu.value = 'article-list'
   } else if (newPath === '/admin/notifications') {
     activeMenu.value = 'notifications'
   }
@@ -157,6 +173,7 @@ const handleMenuSelect = (index) => {
     'coach-audit': '/admin/coach-audit',
     'plan-audit': '/admin/plan-audit',
     'article-audit': '/admin/article-audit',
+    'article-list': '/admin/article-list',
     'notifications': '/admin/notifications'
   }
   

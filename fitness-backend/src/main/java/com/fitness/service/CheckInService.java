@@ -209,6 +209,15 @@ public class CheckInService {
         }
         
         checkInRecordMapper.updateById(checkInRecord);
+        
+        notificationService.sendNotification(
+            checkInRecord.getUserId(),
+            coachId,
+            "CHECK_IN",
+            "教练批注通知",
+            "您的打卡记录收到了新的教练批注，请前往打卡历史查看详情。",
+            checkInRecord.getCheckId()
+        );
     }
     
     /**
@@ -373,6 +382,121 @@ public class CheckInService {
             if (user != null) {
                 map.put("userName", user.getName());
             }
+            
+            records.add(map);
+        }
+        
+        resultPage.setRecords(records);
+        return resultPage;
+    }
+    
+    /**
+     * 获取学员打卡统计（教练端）
+     */
+    public IPage<Map<String, Object>> getStudentCheckInStats(Long coachId, Integer pageNum, Integer pageSize) {
+        // 查询教练的所有学员
+        LambdaQueryWrapper<BindRecord> bindWrapper = new LambdaQueryWrapper<>();
+        bindWrapper.eq(BindRecord::getCoachUserId, coachId)
+                   .isNull(BindRecord::getUnbindTime);
+        
+        Page<BindRecord> page = new Page<>(pageNum, pageSize);
+        IPage<BindRecord> bindPage = bindRecordMapper.selectPage(page, bindWrapper);
+        
+        // 构建统计数据
+        Page<Map<String, Object>> resultPage = new Page<>(pageNum, pageSize);
+        resultPage.setTotal(bindPage.getTotal());
+        
+        List<Map<String, Object>> stats = new java.util.ArrayList<>();
+        for (BindRecord bindRecord : bindPage.getRecords()) {
+            Map<String, Object> stat = new java.util.HashMap<>();
+            
+            // 用户信息
+            com.fitness.entity.User user = userMapper.selectById(bindRecord.getUserId());
+            if (user != null) {
+                stat.put("userId", user.getUserId());
+                stat.put("userName", user.getName());
+            }
+            
+            // 查询打卡统计
+            LambdaQueryWrapper<CheckInRecord> checkInWrapper = new LambdaQueryWrapper<>();
+            checkInWrapper.eq(CheckInRecord::getUserId, bindRecord.getUserId());
+            
+            List<CheckInRecord> checkIns = checkInRecordMapper.selectList(checkInWrapper);
+            
+            // 统计打卡天数（去重日期）
+            long totalDays = checkIns.stream()
+                    .map(c -> c.getCheckTime().toLocalDate())
+                    .distinct()
+                    .count();
+            
+            // 统计打卡次数
+            long totalCount = checkIns.size();
+            
+            // 最近打卡时间
+            LocalDateTime lastCheckInTime = checkIns.stream()
+                    .map(CheckInRecord::getCheckTime)
+                    .max(LocalDateTime::compareTo)
+                    .orElse(null);
+            
+            stat.put("totalDays", totalDays);
+            stat.put("totalCount", totalCount);
+            stat.put("lastCheckInTime", lastCheckInTime);
+            stat.put("planStartTime", bindRecord.getBindTime());
+            stat.put("planName", "当前训练计划"); // 可以从计划表查询
+            
+            stats.add(stat);
+        }
+        
+        resultPage.setRecords(stats);
+        return resultPage;
+    }
+    
+    /**
+     * 获取学员打卡记录列表（教练端）
+     */
+    public IPage<Map<String, Object>> getStudentCheckInRecords(Long userId, Integer pageNum, Integer pageSize) {
+        Long coachId = StpUtil.getLoginIdAsLong();
+        
+        // 验证绑定关系
+        LambdaQueryWrapper<BindRecord> bindWrapper = new LambdaQueryWrapper<>();
+        bindWrapper.eq(BindRecord::getUserId, userId)
+                   .eq(BindRecord::getCoachUserId, coachId)
+                   .isNull(BindRecord::getUnbindTime);
+        
+        Long count = bindRecordMapper.selectCount(bindWrapper);
+        if (count == 0) {
+            throw new BusinessException("该用户不是您的学员");
+        }
+        
+        // 查询打卡记录
+        Page<CheckInRecord> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<CheckInRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CheckInRecord::getUserId, userId)
+               .orderByDesc(CheckInRecord::getCheckTime);
+        
+        IPage<CheckInRecord> checkInPage = checkInRecordMapper.selectPage(page, wrapper);
+        
+        // 转换为Map
+        Page<Map<String, Object>> resultPage = new Page<>(pageNum, pageSize);
+        resultPage.setTotal(checkInPage.getTotal());
+        
+        List<Map<String, Object>> records = new java.util.ArrayList<>();
+        for (CheckInRecord checkIn : checkInPage.getRecords()) {
+            Map<String, Object> map = new java.util.HashMap<>();
+            map.put("checkInId", checkIn.getCheckId());
+            map.put("checkNo", checkIn.getCheckNo());
+            map.put("checkType", checkIn.getCheckType());
+            map.put("checkStatus", checkIn.getCheckStatus());
+            map.put("checkTime", checkIn.getCheckTime());
+            map.put("exerciseCompletion", checkIn.getExerciseCompletion());
+            map.put("dietCompletion", checkIn.getDietCompletion());
+            map.put("weight", checkIn.getWeight());
+            map.put("bodyFatRate", checkIn.getBodyFatRate());
+            map.put("muscleMass", checkIn.getMuscleMass());
+            map.put("userRemark", checkIn.getUserRemark());
+            map.put("images", checkIn.getImages());
+            map.put("coachComment", checkIn.getCoachComment());
+            map.put("isQualified", checkIn.getIsQualified());
             
             records.add(map);
         }

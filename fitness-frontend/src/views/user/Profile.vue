@@ -1,8 +1,50 @@
 <template>
   <div class="user-profile">
     <el-row :gutter="20">
-      <!-- 左侧：身体数据表单 -->
-      <el-col :xs="24" :sm="24" :md="12">
+      <!-- 左侧：个人信息和头像 -->
+      <el-col :xs="24" :sm="24" :md="8">
+        <el-card>
+          <template #header>
+            <div class="card-header">
+              <span>个人信息</span>
+            </div>
+          </template>
+
+          <div class="avatar-section">
+            <el-avatar :size="120" :src="avatarUrl">
+              {{ userInfo.name?.charAt(0) }}
+            </el-avatar>
+            <el-upload
+              class="avatar-uploader"
+              :action="uploadUrl"
+              :headers="uploadHeaders"
+              :show-file-list="false"
+              :on-success="handleAvatarSuccess"
+              :on-error="handleAvatarError"
+              :before-upload="beforeAvatarUpload"
+            >
+              <el-button type="primary" size="small" style="margin-top: 10px">
+                上传头像
+              </el-button>
+            </el-upload>
+          </div>
+
+          <el-descriptions :column="1" border style="margin-top: 20px">
+            <el-descriptions-item label="姓名">{{ userInfo.name }}</el-descriptions-item>
+            <el-descriptions-item label="账号">{{ userInfo.account }}</el-descriptions-item>
+            <el-descriptions-item label="角色">
+              <el-tag v-if="userInfo.role === 'USER'" type="success">普通用户</el-tag>
+              <el-tag v-else-if="userInfo.role === 'COACH'" type="warning">教练</el-tag>
+              <el-tag v-else-if="userInfo.role === 'ADMIN'" type="danger">管理员</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="手机">{{ userInfo.phone }}</el-descriptions-item>
+            <el-descriptions-item label="邮箱">{{ userInfo.email }}</el-descriptions-item>
+          </el-descriptions>
+        </el-card>
+      </el-col>
+
+      <!-- 中间：身体数据表单 -->
+      <el-col :xs="24" :sm="24" :md="8">
         <el-card>
           <template #header>
             <div class="card-header">
@@ -166,7 +208,7 @@
       </el-col>
 
       <!-- 右侧：数据趋势图表 -->
-      <el-col :xs="24" :sm="24" :md="12">
+      <el-col :xs="24" :sm="24" :md="8">
         <el-card>
           <template #header>
             <div class="card-header">
@@ -187,16 +229,42 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, onMounted, nextTick, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
-import { saveBodyData, getBodyData, getBodyHistory } from '@/api/user'
+import { saveBodyData, getBodyData, getBodyHistory, getUserInfo, updateUserInfo } from '@/api/user'
+import { getImageUrl } from '@/utils/image'
+import { useUserStore } from '@/store/user'
 
+const userStore = useUserStore()
 const formRef = ref(null)
 const chartRef = ref(null)
 const loading = ref(false)
 const chartDays = ref(30)
 let chartInstance = null
+
+const userInfo = ref({
+  name: '',
+  account: '',
+  role: '',
+  phone: '',
+  email: '',
+  avatar: ''
+})
+
+const uploadUrl = computed(() => {
+  return '/api/upload/single'
+})
+
+const uploadHeaders = computed(() => {
+  return {
+    'satoken': userStore.token
+  }
+})
+
+const avatarUrl = computed(() => {
+  return userInfo.value.avatar ? getImageUrl(userInfo.value.avatar) : ''
+})
 
 const form = reactive({
   height: null,
@@ -227,6 +295,53 @@ const rules = {
   fitnessGoal: [
     { required: true, message: '请选择健身目标', trigger: 'change' }
   ]
+}
+
+// 加载用户信息
+const loadUserInfo = async () => {
+  try {
+    const res = await getUserInfo()
+    userInfo.value = res.data
+  } catch (error) {
+    console.error('加载用户信息失败', error)
+  }
+}
+
+// 头像上传前验证
+const beforeAvatarUpload = (file) => {
+  const isImage = file.type.startsWith('image/')
+  const isLt2M = file.size / 1024 / 1024 < 2
+
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件!')
+    return false
+  }
+  if (!isLt2M) {
+    ElMessage.error('图片大小不能超过 2MB!')
+    return false
+  }
+  return true
+}
+
+// 头像上传成功
+const handleAvatarSuccess = async (response) => {
+  if (response.code === 200) {
+    try {
+      await updateUserInfo({ avatar: response.data })
+      userInfo.value.avatar = response.data
+      ElMessage.success('头像上传成功')
+      // 更新store中的用户信息
+      userStore.setUserInfo({ ...userStore.userInfo, avatar: response.data })
+    } catch (error) {
+      ElMessage.error('更新头像失败')
+    }
+  } else {
+    ElMessage.error(response.message || '上传失败')
+  }
+}
+
+const handleAvatarError = () => {
+  ElMessage.error('头像上传失败')
 }
 
 // 加载身体数据
@@ -334,6 +449,7 @@ const resetForm = () => {
 }
 
 onMounted(async () => {
+  await loadUserInfo()
   await loadData()
   await nextTick()
   await loadHistory()
@@ -351,5 +467,16 @@ onMounted(async () => {
   align-items: center;
   font-size: 18px;
   font-weight: bold;
+}
+
+.avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+}
+
+.avatar-uploader {
+  margin-top: 10px;
 }
 </style>

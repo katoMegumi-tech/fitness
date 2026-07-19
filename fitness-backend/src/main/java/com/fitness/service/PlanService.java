@@ -292,13 +292,18 @@ public class PlanService {
     /**
      * 查询教练创建的计划列表
      */
-    public Page<FitnessPlanResponse> getCoachPlans(int pageNum, int pageSize) {
+    public Page<FitnessPlanResponse> getCoachPlans(int pageNum, int pageSize, String auditStatus) {
         Long coachId = StpUtil.getLoginIdAsLong();
         
         Page<FitnessPlan> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<FitnessPlan> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(FitnessPlan::getCoachUserId, coachId)
-               .orderByDesc(FitnessPlan::getCreatedAt);
+        wrapper.eq(FitnessPlan::getCoachUserId, coachId);
+        
+        if (auditStatus != null && !auditStatus.isEmpty()) {
+            wrapper.eq(FitnessPlan::getAuditStatus, auditStatus);
+        }
+        
+        wrapper.orderByDesc(FitnessPlan::getCreatedAt);
         
         Page<FitnessPlan> planPage = planMapper.selectPage(page, wrapper);
         
@@ -311,6 +316,10 @@ public class PlanService {
         
         responsePage.setRecords(records);
         return responsePage;
+    }
+    
+    public Page<FitnessPlanResponse> getCoachPlans(int pageNum, int pageSize) {
+        return getCoachPlans(pageNum, pageSize, null);
     }
     
     /**
@@ -368,6 +377,7 @@ public class PlanService {
         User coach = userMapper.selectById(plan.getCoachUserId());
         if (coach != null) {
             response.setCoachName(coach.getName());
+            response.setCoachAvatar(coach.getAvatar());
         }
         
         return response;

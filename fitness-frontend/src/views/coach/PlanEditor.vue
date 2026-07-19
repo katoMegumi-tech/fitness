@@ -13,7 +13,7 @@
         :rules="rules"
         label-width="120px"
       >
-        <el-form-item label="选择学员" prop="userId" v-if="!isEdit">
+        <el-form-item label="选择学员" prop="userId" v-if="!isEdit && !fromStudents">
           <el-select v-model="form.userId" placeholder="请选择学员" filterable>
             <el-option
               v-for="student in students"
@@ -22,6 +22,10 @@
               :value="student.userId"
             />
           </el-select>
+        </el-form-item>
+
+        <el-form-item label="学员" v-if="!isEdit && fromStudents">
+          <el-input :value="selectedStudentName" disabled />
         </el-form-item>
 
         <el-form-item label="计划名称" prop="planName">
@@ -60,15 +64,6 @@
             v-model="form.planStartTime"
             type="datetime"
             placeholder="选择开始时间"
-            value-format="YYYY-MM-DD HH:mm:ss"
-          />
-        </el-form-item>
-
-        <el-form-item label="结束时间" prop="planEndTime">
-          <el-date-picker
-            v-model="form.planEndTime"
-            type="datetime"
-            placeholder="选择结束时间"
             value-format="YYYY-MM-DD HH:mm:ss"
           />
         </el-form-item>
@@ -124,6 +119,8 @@ const router = useRouter()
 const formRef = ref(null)
 const loading = ref(false)
 const isEdit = ref(false)
+const fromStudents = ref(false)
+const selectedStudentName = ref('')
 const students = ref([])
 
 const form = reactive({
@@ -133,7 +130,6 @@ const form = reactive({
   planDifficulty: 'BEGINNER',
   planCycle: 7,
   planStartTime: '',
-  planEndTime: '',
   exercisePlan: '',
   dietPlan: '',
   adjustmentReason: ''
@@ -157,9 +153,6 @@ const rules = {
   ],
   planStartTime: [
     { required: true, message: '请选择开始时间', trigger: 'change' }
-  ],
-  planEndTime: [
-    { required: true, message: '请选择结束时间', trigger: 'change' }
   ],
   exercisePlan: [
     { required: true, message: '请输入运动计划', trigger: 'blur' },
@@ -229,6 +222,27 @@ onMounted(async () => {
   // 如果有planId参数，说明是调整计划
   if (route.query.planId) {
     await loadPlanDetail(route.query.planId)
+  }
+  
+  // 如果从学员页面跳转过来，自动选中学员
+  if (route.query.userId && route.query.fromStudents === 'true') {
+    fromStudents.value = true
+    form.userId = parseInt(route.query.userId)
+    selectedStudentName.value = route.query.userName || '该学员'
+    ElMessage.info({
+      message: `正在为${selectedStudentName.value}制定计划`,
+      duration: 3000
+    })
+  }
+  
+  // 如果从打卡审核页面跳转过来，自动选中学员
+  if (route.query.userId && route.query.fromReview === 'true') {
+    form.userId = parseInt(route.query.userId)
+    const userName = route.query.userName || '该学员'
+    ElMessage.info({
+      message: `正在为${userName}重新制定计划，请根据学员情况调整训练方案`,
+      duration: 5000
+    })
   }
 })
 </script>

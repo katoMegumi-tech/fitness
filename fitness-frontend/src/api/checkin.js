@@ -36,11 +36,15 @@ export function getStudentCheckIns(studentId, params) {
 /**
  * 教练点评打卡记录
  */
-export function addCoachComment(checkInId, comment) {
+export function addCoachComment(checkInId, comment, isQualified) {
+  const data = { comment }
+  if (isQualified !== undefined && isQualified !== null) {
+    data.isQualified = isQualified
+  }
   return request({
     url: `/api/checkin/comment/${checkInId}`,
     method: 'post',
-    data: { comment }
+    data
   })
 }
 
@@ -85,5 +89,27 @@ export function reviewCheckIn(checkInId, data) {
     url: `/api/checkin/comment/${checkInId}`,
     method: 'post',
     data
+  })
+}
+
+/**
+ * 获取学员打卡统计（教练端）
+ */
+export function getStudentCheckInStats(params) {
+  return request({
+    url: '/api/checkin/coach/stats',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 获取学员打卡记录列表（教练端）
+ */
+export function getStudentCheckInRecords(params) {
+  return request({
+    url: '/api/checkin/coach/records',
+    method: 'get',
+    params
   })
 }

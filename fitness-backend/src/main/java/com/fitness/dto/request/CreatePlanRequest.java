@@ -65,7 +65,6 @@ public class CreatePlanRequest {
     /**
      * 计划结束时间
      */
-    @NotNull(message = "计划结束时间不能为空")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private LocalDateTime planEndTime;
     

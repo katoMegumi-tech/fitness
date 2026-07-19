@@ -153,10 +153,15 @@
           </template>
         </el-table-column>
         <el-table-column prop="userRemark" label="备注" show-overflow-tooltip />
-        <el-table-column label="教练点评" show-overflow-tooltip>
+        <el-table-column label="教练点评" min-width="180" show-overflow-tooltip>
           <template #default="{ row }">
             <span v-if="row.coachComment" style="color: #67C23A">{{ row.coachComment }}</span>
             <span v-else style="color: #909399">暂无点评</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="100" fixed="right">
+          <template #default="{ row }">
+            <el-button type="primary" link @click="handleViewHistory(row)">查看</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -172,6 +177,39 @@
         style="margin-top: 20px; justify-content: center"
       />
     </el-card>
+
+    <el-dialog v-model="historyDetailVisible" title="打卡详情" width="700px">
+      <el-descriptions :column="2" border v-if="currentHistory">
+        <el-descriptions-item label="打卡类型">
+          <el-tag v-if="currentHistory.checkType === 'TARGET'" type="warning">完成目标</el-tag>
+          <el-tag v-else>普通打卡</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="打卡时间">
+          {{ currentHistory.checkTime ? currentHistory.checkTime.replace('T', ' ').substring(0, 19) : '' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="运动完成度">
+          {{ currentHistory.exerciseCompletion }}%
+        </el-descriptions-item>
+        <el-descriptions-item label="饮食完成度">
+          <el-tag v-if="currentHistory.dietCompletion === 'COMPLETE'" type="success">完全达标</el-tag>
+          <el-tag v-else-if="currentHistory.dietCompletion === 'PARTIAL'" type="warning">部分达标</el-tag>
+          <el-tag v-else type="danger">未达标</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="备注" :span="2" v-if="currentHistory.userRemark">
+          <div style="white-space: pre-wrap; padding: 10px; background: #f5f7fa; border-radius: 4px">
+            {{ currentHistory.userRemark }}
+          </div>
+        </el-descriptions-item>
+        <el-descriptions-item label="教练点评" :span="2">
+          <div style="white-space: pre-wrap; padding: 10px; background: #e7f5ff; border-radius: 4px">
+            {{ currentHistory.coachComment || '暂无点评' }}
+          </div>
+        </el-descriptions-item>
+      </el-descriptions>
+      <template #footer>
+        <el-button @click="historyDetailVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 数据趋势图表 -->
     <el-card style="margin-top: 20px">
@@ -208,6 +246,8 @@ const checkInForm = reactive({
 
 const submitting = ref(false)
 const checkInHistory = ref([])
+const historyDetailVisible = ref(false)
+const currentHistory = ref(null)
 const imageList = ref([])
 const stats = ref({
   checkInDays: 0,
@@ -224,6 +264,11 @@ const pagination = reactive({
 
 const chartRef = ref(null)
 let chartInstance = null
+
+const handleViewHistory = (row) => {
+  currentHistory.value = row
+  historyDetailVisible.value = true
+}
 
 // 图片上传处理
 const handleImageChange = async (file) => {

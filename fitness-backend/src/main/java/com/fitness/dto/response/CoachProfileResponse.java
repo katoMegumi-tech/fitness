@@ -65,6 +65,8 @@ public class CoachProfileResponse {
      * 认证状态：PENDING/APPROVED/REJECTED
      */
     private String certificationStatus;
+    private String auditOpinion;
+    private LocalDateTime auditTime;
     
     /**
      * 教练评分

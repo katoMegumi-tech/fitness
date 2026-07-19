@@ -160,7 +160,7 @@ CREATE TABLE `t_fitness_plan` (
   `plan_difficulty` VARCHAR(20) NOT NULL DEFAULT 'BEGINNER' COMMENT '计划难度：BEGINNER/INTERMEDIATE/ADVANCED',
   `plan_cycle` INT NOT NULL DEFAULT 7 COMMENT '计划周期（天）',
   `plan_start_time` DATETIME NOT NULL COMMENT '计划开始时间',
-  `plan_end_time` DATETIME NOT NULL COMMENT '计划结束时间',
+  `plan_end_time` DATETIME NULL COMMENT '计划结束时间',
   `plan_status` VARCHAR(20) NOT NULL DEFAULT 'DRAFT' COMMENT '计划状态：DRAFT/PENDING/ACTIVE/COMPLETED/CANCELLED',
   `version` INT NOT NULL DEFAULT 1 COMMENT '计划版本号',
   `parent_plan_id` BIGINT DEFAULT NULL COMMENT '父计划ID（调整后的计划关联原计划）',

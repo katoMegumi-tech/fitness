@@ -8,9 +8,34 @@
       </template>
 
       <!-- 未绑定教练 -->
-      <el-empty v-if="!currentCoach" description="您还没有绑定教练">
-        <el-button type="primary" @click="goToCoachList">选择教练</el-button>
-      </el-empty>
+      <div v-if="!currentCoach">
+        <!-- 显示最近被拒绝的申请 -->
+        <el-alert
+          v-if="latestRejectedApply"
+          type="warning"
+          :closable="false"
+          style="margin-bottom: 20px"
+        >
+          <template #title>
+            <div style="font-size: 16px; font-weight: bold">申请被拒绝</div>
+          </template>
+          <div style="margin-top: 10px">
+            <p style="margin: 5px 0">
+              <strong>{{ latestRejectedApply.coachName }}</strong> 教练拒绝了您的申请
+            </p>
+            <p style="margin: 5px 0; color: #909399">
+              拒绝时间：{{ formatTime(latestRejectedApply.handleTime) }}
+            </p>
+            <p v-if="latestRejectedApply.rejectReason" style="margin: 5px 0">
+              拒绝理由：{{ latestRejectedApply.rejectReason }}
+            </p>
+          </div>
+        </el-alert>
+
+        <el-empty description="您还没有绑定教练">
+          <el-button type="primary" @click="goToCoachList">选择教练</el-button>
+        </el-empty>
+      </div>
 
       <!-- 已绑定教练 -->
       <div v-else class="coach-info-container">
@@ -71,12 +96,14 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getCurrentBinding, unbind } from '@/api/binding'
+import { getCurrentBinding, unbind, getUserApplies } from '@/api/binding'
 import { getCoachProfile } from '@/api/coach'
+import { getImageUrl } from '@/utils/image'
 
 const router = useRouter()
 const loading = ref(false)
 const currentCoach = ref(null)
+const latestRejectedApply = ref(null)
 
 // 加载当前绑定的教练
 const loadCurrentCoach = async () => {
@@ -88,13 +115,44 @@ const loadCurrentCoach = async () => {
       const coachRes = await getCoachProfile(res.data.coachUserId)
       currentCoach.value = {
         ...res.data,
-        ...coachRes.data
+        ...coachRes.data,
+        avatar: coachRes.data?.avatar ? getImageUrl(coachRes.data.avatar) : ''
       }
+    } else {
+      // 如果没有绑定教练，查询最近被拒绝的申请
+      await loadLatestRejectedApply()
     }
   } catch (error) {
     console.error('加载教练信息失败', error)
+    // 如果没有绑定教练，查询最近被拒绝的申请
+    await loadLatestRejectedApply()
   } finally {
     loading.value = false
+  }
+}
+
+// 加载最近被拒绝的申请
+const loadLatestRejectedApply = async () => {
+  try {
+    const res = await getUserApplies({
+      pageNum: 1,
+      pageSize: 10
+    })
+    if (res.data && res.data.records) {
+      // 找到最近被拒绝的申请
+      const rejectedApplies = res.data.records.filter(
+        apply => apply.applyStatus === 'REJECTED'
+      )
+      if (rejectedApplies.length > 0) {
+        // 按处理时间排序，取最新的
+        rejectedApplies.sort((a, b) => {
+          return new Date(b.handleTime) - new Date(a.handleTime)
+        })
+        latestRejectedApply.value = rejectedApplies[0]
+      }
+    }
+  } catch (error) {
+    console.error('加载申请记录失败', error)
   }
 }
 
@@ -121,6 +179,8 @@ const handleUnbind = () => {
       await unbind({ unbindReason: value || '' })
       ElMessage.success('已解除绑定')
       currentCoach.value = null
+      // 解绑后重新加载，可能会显示被拒绝的申请
+      await loadLatestRejectedApply()
     } catch (error) {
       ElMessage.error(error.message || '解绑失败')
     }

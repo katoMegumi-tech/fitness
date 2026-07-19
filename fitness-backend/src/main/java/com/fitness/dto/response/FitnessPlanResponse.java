@@ -39,6 +39,8 @@ public class FitnessPlanResponse {
      */
     private String coachName;
     
+    private String coachAvatar;
+    
     /**
      * 计划名称
      */

@@ -1,6 +1,27 @@
 import request from '@/utils/request'
 
 /**
+ * 获取当前用户信息
+ */
+export function getUserInfo() {
+  return request({
+    url: '/user/info',
+    method: 'get'
+  })
+}
+
+/**
+ * 更新用户信息
+ */
+export function updateUserInfo(data) {
+  return request({
+    url: '/user/info',
+    method: 'put',
+    data
+  })
+}
+
+/**
  * 保存或更新用户身体数据
  */
 export function saveBodyData(data) {

@@ -88,8 +88,9 @@ public class PlanController {
     @SaCheckRole("COACH")
     public Result<Page<FitnessPlanResponse>> getCoachPlans(
             @RequestParam(defaultValue = "1") int pageNum,
-            @RequestParam(defaultValue = "10") int pageSize) {
-        Page<FitnessPlanResponse> page = planService.getCoachPlans(pageNum, pageSize);
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) String auditStatus) {
+        Page<FitnessPlanResponse> page = planService.getCoachPlans(pageNum, pageSize, auditStatus);
         return Result.success(page);
     }
     

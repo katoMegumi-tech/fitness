@@ -143,8 +143,9 @@ public class ArticleController {
     @SaCheckRole("COACH")
     public Result<Page<ArticleResponse>> getMyArticles(
             @RequestParam(defaultValue = "1") int pageNum,
-            @RequestParam(defaultValue = "10") int pageSize) {
-        Page<ArticleResponse> page = articleService.getMyArticles(pageNum, pageSize);
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) String auditStatus) {
+        Page<ArticleResponse> page = articleService.getMyArticles(pageNum, pageSize, auditStatus);
         return Result.success(page);
     }
     

@@ -143,6 +143,19 @@ public class CoachService {
             response.setRating(profile.getRating());
             response.setTotalStudents(profile.getTotalStudents());
             response.setCreatedAt(profile.getCreatedAt());
+
+            LambdaQueryWrapper<CertAuditRecord> auditWrapper = new LambdaQueryWrapper<>();
+            auditWrapper.eq(CertAuditRecord::getCoachUserId, coachId)
+                    .isNotNull(CertAuditRecord::getAuditTime)
+                    .orderByDesc(CertAuditRecord::getAuditTime)
+                    .last("limit 1");
+            CertAuditRecord latestAuditRecord = certAuditRecordMapper.selectOne(auditWrapper);
+            if (latestAuditRecord != null
+                    && profile.getCertificationStatus() != null
+                    && profile.getCertificationStatus().equals(latestAuditRecord.getAuditStatus())) {
+                response.setAuditOpinion(latestAuditRecord.getAuditOpinion());
+                response.setAuditTime(latestAuditRecord.getAuditTime());
+            }
         } else {
             response.setCertificationStatus("NOT_APPLIED");
         }

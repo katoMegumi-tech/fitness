@@ -4,11 +4,13 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fitness.dto.request.UserBodyDataRequest;
 import com.fitness.dto.response.UserBodyDataResponse;
+import com.fitness.entity.User;
 import com.fitness.entity.UserBodyBaseData;
 import com.fitness.entity.UserBodyHistory;
 import com.fitness.exception.BusinessException;
 import com.fitness.mapper.UserBodyBaseDataMapper;
 import com.fitness.mapper.UserBodyHistoryMapper;
+import com.fitness.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 用户信息服务类
@@ -28,6 +31,41 @@ public class UserService {
     
     private final UserBodyBaseDataMapper bodyBaseDataMapper;
     private final UserBodyHistoryMapper bodyHistoryMapper;
+    private final UserMapper userMapper;
+    
+    /**
+     * 根据用户ID获取用户信息
+     */
+    public User getUserById(Long userId) {
+        return userMapper.selectById(userId);
+    }
+    
+    /**
+     * 更新用户信息
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void updateUserInfo(Long userId, Map<String, Object> updates) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException("用户不存在");
+        }
+        
+        // 只允许更新特定字段
+        if (updates.containsKey("avatar")) {
+            user.setAvatar((String) updates.get("avatar"));
+        }
+        if (updates.containsKey("name")) {
+            user.setName((String) updates.get("name"));
+        }
+        if (updates.containsKey("phone")) {
+            user.setPhone((String) updates.get("phone"));
+        }
+        if (updates.containsKey("email")) {
+            user.setEmail((String) updates.get("email"));
+        }
+        
+        userMapper.updateById(user);
+    }
     
     /**
      * 保存或更新用户身体数据

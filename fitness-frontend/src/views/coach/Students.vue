@@ -18,13 +18,10 @@
             {{ formatDateTime(row.bindTime) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" size="small" @click="handleViewData(row)">
-              查看数据
-            </el-button>
-            <el-button type="success" size="small" @click="handleMakePlan(row)">
-              制定计划
+              查看
             </el-button>
           </template>
         </el-table-column>
@@ -81,7 +78,10 @@
       </div>
       <template #footer>
         <el-button @click="dataVisible = false">关闭</el-button>
-        <el-button type="primary" @click="handleMakePlan(currentStudent)" v-if="currentStudent">制定计划</el-button>
+        <el-button type="success" @click="handleMakePlan(currentStudent)" v-if="currentStudent">
+          <el-icon style="margin-right: 4px"><EditPen /></el-icon>
+          制定计划
+        </el-button>
       </template>
     </el-dialog>
   </div>
@@ -91,6 +91,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { EditPen } from '@element-plus/icons-vue'
 import { getCoachStudents } from '@/api/binding'
 import { getUserBodyData, getUserBodyHistory } from '@/api/user'
 
@@ -149,9 +150,14 @@ const loadStudentData = async (userId) => {
 
 // 制定计划
 const handleMakePlan = (row) => {
+  dataVisible.value = false
   router.push({
-    name: 'PlanEditor',
-    query: { userId: row.userId }
+    path: '/coach/plan-editor',
+    query: { 
+      userId: row.userId,
+      userName: row.userName,
+      fromStudents: 'true'
+    }
   })
 }
 
